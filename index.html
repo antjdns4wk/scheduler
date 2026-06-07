@@ -244,6 +244,32 @@
   .blk:hover .blk-del { display: flex; }
   .blk-del:hover { background: rgba(200,0,0,.8); }
 
+  /* 블록 크기 조절 핸들 (아래 가장자리) */
+  .blk-resize {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 8px; cursor: ns-resize; z-index: 55;
+    display: none;
+  }
+  .blk-resize::after {
+    content: ''; position: absolute; left: 50%; bottom: 2px;
+    transform: translateX(-50%);
+    width: 24px; height: 3px; border-radius: 2px;
+    background: rgba(255,255,255,.6);
+  }
+  .blk:hover .blk-resize { display: block; }
+  .blk.resizing { transition: none; z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+  .blk.resizing .blk-resize::after { background: #fff; }
+
+  /* 이름 수정 입력창 */
+  .blk-edit-input {
+    position: absolute; left: 4px; right: 22px; top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255,255,255,.95); border: none; border-radius: 4px;
+    padding: 2px 6px; font-size: 11px; font-weight: 600;
+    color: #1A1D27; outline: none; z-index: 60;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+
   /* ── Zoom controls ──────────────────────────────*/
   .zoom-controls {
     display: flex; align-items: center; gap: 4px; margin-left: 12px;
@@ -1182,7 +1208,7 @@
 
 <div class="tip">
   요일 클릭 → 일별 통계 &nbsp;|&nbsp; 📊 주간 통계 버튼 → 주간 요약 &nbsp;|&nbsp;
-  빈 칸 클릭/드래그로 블록 생성 &nbsp;|&nbsp; <strong>"업무 90"</strong> 입력 후 Enter &nbsp;|&nbsp; 블록 호버 시 ✓완료 체크 &nbsp;|&nbsp; 빨간 선 = 현재 시각
+  빈 칸 클릭/드래그로 생성 &nbsp;|&nbsp; 블록 더블클릭(길게 누르기) = 이름 수정 &nbsp;|&nbsp; 아래 모서리 드래그 = 크기 조절 &nbsp;|&nbsp; ✓완료 체크
 </div>
 
 <!-- Archive panel -->
@@ -1337,6 +1363,7 @@ function fmtTime(mins) {
 let blocks = [];
 let activeWrap = null;
 let drag = null;
+let resizing = null;
 
 const todayIdx = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
 
@@ -1634,25 +1661,154 @@ function renderBlock(b, animate) {
     setTimeout(() => el.remove(), 230);
     updateRtLeg(); autoSave();
   });
-  el.appendChild(chk); el.appendChild(lbl); el.appendChild(dur); el.appendChild(del);
+  // 크기 조절 핸들
+  const resize = document.createElement('div');
+  resize.className = 'blk-resize';
+
+  el.appendChild(chk); el.appendChild(lbl); el.appendChild(dur); el.appendChild(del); el.appendChild(resize);
+
+  // ── 더블클릭: 이름 수정 ──
+  el.addEventListener('dblclick', e => {
+    e.stopPropagation(); e.preventDefault();
+    startEditLabel(b, el, lbl);
+  });
+
+  // ── 크기 조절 드래그 ──
+  resize.addEventListener('pointerdown', e => {
+    e.stopPropagation(); e.preventDefault();
+    closeInp();
+    const gs = document.getElementById('gscroll');
+    resizing = {
+      id: b.id, el,
+      startMins: b.mins,
+      startY: e.clientY,
+      block: b,
+    };
+    el.classList.add('resizing');
+    gs.style.overflowY = 'hidden';
+    resize.setPointerCapture(e.pointerId);
+  });
+
+  // ── 블록 이동 드래그 + 길게 눌러 이름 수정 ──
+  let longPressTimer = null;
   el.addEventListener('pointerdown', e => {
-    if (e.target === del) return;
+    if (e.target === del || e.target === resize || e.target === chk) return;
+    if (e.target.classList.contains('blk-edit-input')) return;
     e.preventDefault(); e.stopPropagation(); closeInp();
     const gs = document.getElementById('gscroll');
     const hdrH = document.getElementById('dhdrs').getBoundingClientRect().height;
-    const blockTopInScroll = b.si * PX;  // absolute top in scroll space
+    const blockTopInScroll = b.si * PX;
     drag = {
       id: b.id, el,
-      // offY = cursor position relative to block top, in scroll-space px
       offY: (e.clientY - gs.getBoundingClientRect().top - hdrH + gs.scrollTop) - blockTopInScroll,
+      startX: e.clientX, startY: e.clientY, moved: false,
     };
     el.classList.add('dg');
     document.getElementById('gscroll').style.overflowY = 'hidden';
+
+    // 길게 누르기(500ms) → 이름 수정 (모바일 대응)
+    longPressTimer = setTimeout(() => {
+      if (drag && !drag.moved) {
+        // 드래그 취소하고 이름 수정 모드
+        el.classList.remove('dg');
+        document.getElementById('gscroll').style.overflowY = 'auto';
+        drag = null;
+        if (navigator.vibrate) navigator.vibrate(20);
+        startEditLabel(b, el, lbl);
+      }
+    }, 500);
+  });
+  // 움직이면 long-press 취소
+  el.addEventListener('pointermove', () => {
+    if (drag && drag.moved && longPressTimer) {
+      clearTimeout(longPressTimer); longPressTimer = null;
+    }
+  });
+  el.addEventListener('pointerup', () => {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
   });
   col.appendChild(el);
   // if currently in day-view and this col is hidden, don't show
   if (viewMode === 'day' && b.col !== dayView) col.style.display = 'none';
 }
+
+/* ── 블록 이름 수정 ─────────────────────────── */
+function startEditLabel(b, el, lbl) {
+  closeInp();
+  // 기존 입력창 있으면 제거
+  const existing = el.querySelector('.blk-edit-input');
+  if (existing) return;
+
+  const input = document.createElement('input');
+  input.className = 'blk-edit-input';
+  input.type = 'text';
+  input.value = b.label;
+  el.appendChild(input);
+  lbl.style.visibility = 'hidden';
+  input.focus();
+  input.select();
+
+  function commit() {
+    const newLabel = input.value.trim();
+    if (newLabel && newLabel !== b.label) {
+      b.label = newLabel;
+      // 카테고리 색상 갱신
+      el.style.background = pal(b.label);
+      lbl.textContent = b.label + ' ' + b.mins + '분';
+      updateRtLeg(); autoSave();
+    }
+    input.remove();
+    lbl.style.visibility = '';
+  }
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { commit(); }
+    else if (e.key === 'Escape') { input.remove(); lbl.style.visibility = ''; }
+    e.stopPropagation();
+  });
+  input.addEventListener('blur', commit);
+  input.addEventListener('pointerdown', e => e.stopPropagation());
+  input.addEventListener('dblclick', e => e.stopPropagation());
+}
+
+/* ── 블록 크기 조절 ─────────────────────────── */
+document.addEventListener('pointermove', e => {
+  if (!resizing) return;
+  e.preventDefault();
+  const deltaY = e.clientY - resizing.startY;
+  const deltaMins = Math.round(deltaY / PX) * MIN_UNIT;  // 10분 단위
+  let newMins = resizing.startMins + deltaMins;
+  // 최소 10분, 최대 범위 제한
+  newMins = Math.max(10, Math.min(newMins, (N_FINE - resizing.block.si) * MIN_UNIT));
+  // 미리보기
+  const exactH = (newMins / MIN_UNIT) * PX - 2;
+  resizing.el.style.height = Math.max(exactH, 4) + 'px';
+  resizing.previewMins = newMins;
+  // 라벨 업데이트
+  const lbl = resizing.el.querySelector('.blk-lbl');
+  if (lbl) lbl.textContent = resizing.block.label + ' ' + newMins + '분';
+}, { passive: false });
+
+function finishResize() {
+  if (!resizing) return;
+  const r = resizing;
+  resizing = null;
+  r.el.classList.remove('resizing');
+  document.getElementById('gscroll').style.overflowY = 'auto';
+
+  const finalMins = r.previewMins || r.startMins;
+  r.block.mins  = finalMins;
+  r.block.slots = finalMins / MIN_UNIT;
+
+  // 겹침 해결 (크기 커지면서 다른 블록과 충돌할 수 있음)
+  const resolved = resolveSlot(r.block, r.block.col, r.block.si);
+  r.block.si = resolved;
+  renderBlock(r.block);
+  if (navigator.vibrate) navigator.vibrate(10);
+  updateRtLeg(); autoSave();
+}
+document.addEventListener('pointerup', finishResize);
+document.addEventListener('pointercancel', finishResize);
 
 /* ── Collision resolver (called only on drop) ── */
 function resolveSlot(b, col, wantedSi) {
@@ -1717,6 +1873,12 @@ document.addEventListener('pointerdown', e => {
 document.addEventListener('pointermove', e => {
   if (!drag) return;
   e.preventDefault();
+
+  // 일정 거리 이상 움직이면 moved 플래그 (long-press 구분용)
+  if (!drag.moved && drag.startX !== undefined) {
+    const dist = Math.abs(e.clientX - drag.startX) + Math.abs(e.clientY - drag.startY);
+    if (dist > 6) drag.moved = true;
+  }
 
   const gs    = document.getElementById('gscroll');
   const gcols = document.getElementById('gcols');
