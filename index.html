@@ -75,6 +75,103 @@
     border-bottom: 1px solid var(--border);
   }
   .title-row h1 { font-size: 16px; font-weight: 600; color: var(--text); letter-spacing: -.3px; }
+
+  /* ── 새 헤더 (좌/중/우 3분할) ─────────────────── */
+  .app-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; gap: 16px;
+  }
+  .hdr-left  { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .hdr-center{ display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; }
+  .hdr-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+  .hdr-logo { font-size: 20px; }
+  .hdr-title { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -.3px; white-space: nowrap; }
+
+  /* 저장 상태 배지 */
+  .save-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 600; padding: 3px 9px;
+    border-radius: 20px; background: var(--surface-muted);
+    color: var(--text-sub); white-space: nowrap;
+  }
+  .save-badge .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .save-badge.synced  { color: #16A34A; background: #ECFDF5; }
+  .save-badge.saving  { color: #D97706; background: #FFFBEB; }
+  .save-badge.offline { color: #DC2626; background: #FEF2F2; }
+
+  /* 주간 이동 (헤더 중앙) */
+  .week-ctrl {
+    display: flex; align-items: center; gap: 2px;
+    background: var(--surface-muted); border-radius: 10px; padding: 3px;
+  }
+  .week-ctrl button {
+    width: 30px; height: 30px; border: none; background: transparent;
+    border-radius: 7px; cursor: pointer; font-size: 16px; color: var(--text-sub);
+    display: flex; align-items: center; justify-content: center;
+    transition: background .12s;
+  }
+  .week-ctrl button:hover { background: var(--surface); color: var(--text); }
+  .week-ctrl .week-range {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    padding: 0 12px; min-width: 150px; text-align: center;
+    font-variant-numeric: tabular-nums; white-space: nowrap; cursor: default;
+  }
+  .btn-today {
+    height: 34px; padding: 0 14px; border-radius: 9px;
+    border: 1px solid var(--border); background: var(--surface);
+    font-size: 12px; font-weight: 600; color: var(--text-sub); cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif; white-space: nowrap;
+    transition: all .12s;
+  }
+  .btn-today:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* 헤더 우측 아이콘 버튼 */
+  .hdr-icon-btn {
+    width: 34px; height: 34px; border-radius: 9px;
+    border: 1px solid var(--border); background: var(--surface);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; color: var(--text-sub); transition: all .12s;
+  }
+  .hdr-icon-btn:hover { background: var(--surface-muted); color: var(--text); }
+
+  /* 헤더 프로필 */
+  .hdr-profile {
+    display: flex; align-items: center; gap: 7px;
+    padding: 4px 10px 4px 8px; border-radius: 20px;
+    background: var(--surface-muted); cursor: default;
+  }
+  .hdr-profile .pf-avatar {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+  }
+  .hdr-profile .pf-name { font-size: 12px; font-weight: 600; color: var(--text); max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hdr-profile .pf-logout {
+    font-size: 14px; color: var(--text-hint); cursor: pointer;
+    background: none; border: none; padding: 0 2px; line-height: 1;
+  }
+  .hdr-profile .pf-logout:hover { color: var(--sun); }
+
+  /* 더보기 드롭다운 */
+  .more-menu {
+    position: absolute; top: 52px; right: 16px; z-index: 800;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: var(--shadow-md);
+    padding: 6px; min-width: 200px; display: none;
+  }
+  .more-menu.show { display: block; }
+  .more-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; color: var(--text); background: none; border: none;
+    width: 100%; text-align: left; font-family: 'Noto Sans KR', sans-serif;
+    transition: background .1s;
+  }
+  .more-item:hover { background: var(--surface-muted); }
+  .more-item .mi-icon { font-size: 15px; width: 20px; text-align: center; }
+  .more-divider { height: 1px; background: var(--border); margin: 5px 8px; }
   .runtime-legend { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; align-items: center; }
   .rt-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-sub); }
   .rt-dot  { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
@@ -972,11 +1069,19 @@
 
     /* 상단 topbar: 카테고리 줄 숨김 */
     .cat-row { display: none; }
-    .title-row {
-      padding: 8px 12px 6px;
-    }
-    .title-row h1 { font-size: 14px; }
-    #fbStatus { display: none; }
+
+    /* 새 헤더 모바일 대응 */
+    .app-header { padding: 8px 10px; gap: 8px; flex-wrap: wrap; }
+    .hdr-title { display: none; }              /* 제목 숨김 (공간 절약) */
+    .hdr-left { gap: 6px; }
+    .hdr-center { order: 3; flex-basis: 100%; justify-content: center; }
+    .week-ctrl .week-range { min-width: 120px; font-size: 12px; }
+    .btn-today { height: 30px; padding: 0 10px; font-size: 11px; }
+    .hdr-icon-btn { width: 30px; height: 30px; font-size: 14px; }
+    .hdr-profile .pf-name { display: none; }   /* 이름 숨김, 아바타만 */
+    .hdr-profile { padding: 4px; gap: 0; }
+    .save-badge { font-size: 10px; padding: 2px 7px; }
+    .more-menu { top: auto; bottom: 60px; right: 10px; }
 
     /* 시간축 좁게 */
     .taxis { width: 36px; }
@@ -1026,8 +1131,7 @@
       display: none;
     }
 
-    /* 모바일 더보기 버튼 표시 */
-    #btnMore { display: flex !important; }
+
 
     /* 블록 라벨 크기 */
     .blk-lbl { font-size: 9px; }
@@ -1111,16 +1215,37 @@
 </div>
 
 <div class="topbar">
-  <div class="title-row">
-    <span style="font-size:20px;">🗓</span>
-    <h1>시간 블록 스케줄러</h1>
-    <span id="fbStatus" style="font-size:11px;color:var(--text-hint);margin-left:4px;">🔄 연결 중...</span>
-    <div class="user-info" id="userInfo">
-      <span class="user-name" id="userName"></span>
-      <button class="logout-btn" id="logoutBtn">로그아웃</button>
+  <div class="app-header">
+    <!-- 좌측: 로고 + 제목 + 저장 상태 -->
+    <div class="hdr-left">
+      <span class="hdr-logo">🗓</span>
+      <span class="hdr-title">Time Block Scheduler</span>
+      <span class="save-badge" id="saveBadge"><span class="badge-dot"></span><span id="saveBadgeText">연결 중</span></span>
     </div>
-    <div class="runtime-legend" id="rtLeg"></div>
+
+    <!-- 중앙: 주간 이동 -->
+    <div class="hdr-center">
+      <div class="week-ctrl">
+        <button id="weekPrev" title="이전 주 (←)">&#8249;</button>
+        <span class="week-range" id="weekTag"></span>
+        <button id="weekNext" title="다음 주 (→)">&#8250;</button>
+      </div>
+      <button class="btn-today" id="btnToday" title="오늘로 이동 (T)">오늘</button>
+    </div>
+
+    <!-- 우측: 검색 + 설정 + 프로필 + 더보기 -->
+    <div class="hdr-right">
+      <button class="hdr-icon-btn" id="btnSearch" title="날짜 검색">🔍</button>
+      <button class="hdr-icon-btn" id="btnSettings" title="설정">⚙️</button>
+      <div class="hdr-profile" id="userInfo" style="display:none;">
+        <span class="pf-avatar" id="pfAvatar">U</span>
+        <span class="pf-name" id="userName"></span>
+        <button class="pf-logout" id="logoutBtn" title="로그아웃">⏻</button>
+      </div>
+      <button class="hdr-icon-btn" id="btnMoreMenu" title="더보기">⋯</button>
+    </div>
   </div>
+
   <div class="cat-row">
     <span class="cat-label">CATEGORY</span>
     <span class="cat-chip"><span class="cat-chip-dot" style="background:#D94F4F"></span>업무</span>
@@ -1130,7 +1255,21 @@
     <span class="cat-chip"><span class="cat-chip-dot" style="background:#D76596"></span>휴식</span>
     <span class="cat-chip"><span class="cat-chip-dot" style="background:#7E6AD8"></span>취침</span>
     <span class="cat-chip"><span class="cat-chip-dot" style="background:#7A828E"></span>기타</span>
+    <span id="fbStatus" style="display:none;"></span>
+    <div class="runtime-legend" id="rtLeg" style="margin-left:auto;"></div>
   </div>
+</div>
+
+<!-- 더보기 드롭다운 메뉴 -->
+<div class="more-menu" id="moreMenu">
+  <button class="more-item" id="miSave"><span class="mi-icon">💾</span>저장</button>
+  <div class="more-divider"></div>
+  <button class="more-item" id="miWeekStats"><span class="mi-icon">📊</span>주간 통계</button>
+  <button class="more-item" id="miTemplate"><span class="mi-icon">📋</span>템플릿</button>
+  <button class="more-item" id="miArchive"><span class="mi-icon">📂</span>기록 보기</button>
+  <div class="more-divider"></div>
+  <button class="more-item" id="miExport"><span class="mi-icon">⬇</span>내보내기</button>
+  <button class="more-item" id="miImport"><span class="mi-icon">⬆</span>불러오기</button>
 </div>
 
 <div class="body">
@@ -1170,18 +1309,6 @@
     <span class="day-nav-label" id="dayNavLabel"></span>
     <button class="day-nav-btn" id="dayNavNext">&#8250;</button>
   </div>
-  <!-- date search -->
-  <div class="date-search-wrap">
-    <input type="date" class="date-search-input" id="dateSearchInput" title="날짜로 이동">
-    <button class="date-search-btn" id="dateSearchBtn" title="이동">🔍</button>
-    <button class="date-search-clear" id="dateSearchClear">✕</button>
-  </div>
-  <span class="week-label">WEEK</span>
-  <div class="week-nav">
-    <button id="weekPrev" title="이전 주">&#8249;</button>
-    <span class="week-tag" id="weekTag"></span>
-    <button id="weekNext" title="다음 주">&#8250;</button>
-  </div>
   <div class="zoom-controls">
     <button class="zoom-btn" id="zoomOut">−</button>
     <span class="zoom-pct" id="zoomPct">100%</span>
@@ -1189,66 +1316,23 @@
     <button class="zoom-btn" id="zoomReset" title="초기화" style="font-size:12px;">⟳</button>
   </div>
   <div class="savebar-actions">
-    <button class="btn-save"   id="btnSave">💾 저장</button>
-    <button class="btn-export" id="btnExport">⬇ 내보내기</button>
-    <button class="btn-import" id="btnImport">⬆ 불러오기</button>
+    <!-- 숨겨진 실제 동작 버튼 (헤더/더보기에서 .click()로 호출) -->
     <input type="file" id="fileInput" accept=".json" style="display:none">
-    <button class="btn-export" id="btnWeekStats">📊 주간 통계</button>
-    <button class="btn-export" id="btnTemplate">📋 템플릿</button>
-    <button class="btn-export" id="btnArchive">📂 기록 보기</button>
-    <!-- 모바일 전용 버튼 -->
-    <button class="btn-export" id="btnMore"
-      style="display:none;align-items:center;gap:4px;">
-      ⋯ 더보기
-    </button>
+    <button id="btnSave" style="display:none;"></button>
+    <button id="btnExport" style="display:none;"></button>
+    <button id="btnImport" style="display:none;"></button>
+    <button id="btnWeekStats" style="display:none;"></button>
+    <button id="btnTemplate" style="display:none;"></button>
+    <button id="btnArchive" style="display:none;"></button>
+    <!-- 날짜 검색 (헤더 검색 버튼으로 토글) -->
+    <input type="date" id="dateSearchInput" style="display:none;">
+    <button id="dateSearchBtn" style="display:none;"></button>
+    <button id="dateSearchClear" style="display:none;"></button>
+    <!-- 모바일 메모 토글 -->
     <button class="btn-export" id="btnMemoToggle"
       style="display:none;align-items:center;gap:4px;">
       📝 메모
     </button>
-  </div>
-</div>
-
-<!-- 모바일 더보기 바텀시트 -->
-<div id="moreSheet" style="
-  display:none; position:fixed; inset:0; z-index:998;
-  background:rgba(0,0,0,.4);" onclick="closeMobileMore()">
-  <div style="
-    position:absolute; bottom:0; left:0; right:0;
-    background:var(--surface); border-radius:16px 16px 0 0;
-    padding:16px 16px 32px;" onclick="event.stopPropagation()">
-    <div style="width:36px;height:4px;background:var(--border-hr);border-radius:2px;margin:0 auto 16px;"></div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-      <button onclick="document.getElementById('btnWeekStats').click();closeMobileMore();"
-        style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border-radius:12px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-family:inherit;">
-        <span style="font-size:22px;">📊</span>
-        <span style="font-size:11px;font-weight:600;color:var(--text-sub);">주간 통계</span>
-      </button>
-      <button onclick="document.getElementById('btnTemplate').click();closeMobileMore();"
-        style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border-radius:12px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-family:inherit;">
-        <span style="font-size:22px;">📋</span>
-        <span style="font-size:11px;font-weight:600;color:var(--text-sub);">템플릿</span>
-      </button>
-      <button onclick="document.getElementById('btnArchive').click();closeMobileMore();"
-        style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border-radius:12px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-family:inherit;">
-        <span style="font-size:22px;">📂</span>
-        <span style="font-size:11px;font-weight:600;color:var(--text-sub);">기록 보기</span>
-      </button>
-      <button onclick="document.getElementById('btnExport').click();closeMobileMore();"
-        style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border-radius:12px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-family:inherit;">
-        <span style="font-size:22px;">⬇</span>
-        <span style="font-size:11px;font-weight:600;color:var(--text-sub);">내보내기</span>
-      </button>
-      <button onclick="document.getElementById('btnImport').click();closeMobileMore();"
-        style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border-radius:12px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-family:inherit;">
-        <span style="font-size:22px;">⬆</span>
-        <span style="font-size:11px;font-weight:600;color:var(--text-sub);">불러오기</span>
-      </button>
-      <button onclick="document.getElementById('btnSave').click();closeMobileMore();"
-        style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border-radius:12px;border:1px solid #1D4ED8;background:#EFF6FF;cursor:pointer;font-family:inherit;">
-        <span style="font-size:22px;">💾</span>
-        <span style="font-size:11px;font-weight:600;color:#1D4ED8;">저장</span>
-      </button>
-    </div>
   </div>
 </div>
 
@@ -2857,7 +2941,9 @@ async function initFirebase() {
         // 로그인됨
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('userInfo').style.display = 'flex';
-        document.getElementById('userName').textContent = user.displayName || user.email;
+        const name = user.displayName || user.email || 'User';
+        document.getElementById('userName').textContent = name;
+        document.getElementById('pfAvatar').textContent = name.charAt(0).toUpperCase();
         updateFbStatus();
         // 사용자별 데이터 로드
         const initKey = getWeekKey(0);
@@ -2886,17 +2972,11 @@ async function initFirebase() {
 
 /* ── 연결 상태 업데이트 ─────────────────────── */
 function updateFbStatus() {
-  const el = document.getElementById('fbStatus');
-  if (!el) return;
-  if (!currentUser) {
-    el.textContent = '🔒 로그인 필요';
-    el.style.color = 'var(--text-hint)';
-  } else if (fbConnected) {
-    el.textContent = '🟢 동기화됨';
-    el.style.color = '#16A34A';
-  } else {
-    el.textContent = '🔴 오프라인';
-    el.style.color = '#DC2626';
+  // 저장 상태 배지 갱신
+  if (typeof setSaveBadge === 'function') {
+    if (!currentUser)      setSaveBadge('login');
+    else if (fbConnected)  setSaveBadge('synced');
+    else                   setSaveBadge('offline');
   }
 }
 
@@ -2955,6 +3035,11 @@ async function getAllSavedKeys() {
 function autoSave() {
   const key = getWeekKey(weekOffset);
   myLastSaveAt = Date.now();
+  if (typeof setSaveBadge === 'function' && currentUser) {
+    setSaveBadge('saving');
+    clearTimeout(window._saveBadgeTimer);
+    window._saveBadgeTimer = setTimeout(() => setSaveBadge(fbConnected ? 'synced' : 'offline'), 800);
+  }
   // 중복 ID 제거 후 저장
   const seen = new Set();
   const cleanBlocks = blocks.filter(b => {
@@ -3389,12 +3474,10 @@ function attachFirebaseListener(key) {
 /* ── 모바일 전용 JS ─────────────────────────── */
 const isMobile = () => window.innerWidth <= 768;
 
-// 더보기 바텀시트
-document.getElementById('btnMore').addEventListener('click', () => {
-  document.getElementById('moreSheet').style.display = 'block';
-});
+// 모바일 더보기 시트 (구버전 - 미사용, 호환용 stub)
 function closeMobileMore() {
-  document.getElementById('moreSheet').style.display = 'none';
+  const sheet = document.getElementById('moreSheet');
+  if (sheet) sheet.style.display = 'none';
 }
 
 // 메모 토글 (모바일 일간 모드)
@@ -3435,6 +3518,71 @@ document.addEventListener('pointerdown', e => {
     if (btn) btn.textContent = '📝 메모';
   }
 });
+
+/* ── 새 헤더 동작 ───────────────────────────── */
+// 더보기 메뉴 토글
+document.getElementById('btnMoreMenu').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('moreMenu').classList.toggle('show');
+});
+document.addEventListener('click', e => {
+  const menu = document.getElementById('moreMenu');
+  if (menu.classList.contains('show') && !menu.contains(e.target)
+      && e.target.id !== 'btnMoreMenu') {
+    menu.classList.remove('show');
+  }
+});
+
+// 더보기 메뉴 항목 → 숨겨진 버튼 클릭
+function wireMore(itemId, btnId) {
+  document.getElementById(itemId).addEventListener('click', () => {
+    document.getElementById('moreMenu').classList.remove('show');
+    document.getElementById(btnId).click();
+  });
+}
+wireMore('miSave', 'btnSave');
+wireMore('miWeekStats', 'btnWeekStats');
+wireMore('miTemplate', 'btnTemplate');
+wireMore('miArchive', 'btnArchive');
+wireMore('miExport', 'btnExport');
+wireMore('miImport', 'btnImport');
+
+// 오늘 버튼
+document.getElementById('btnToday').addEventListener('click', () => {
+  weekOffset = 0;
+  updateWeekTag();
+  if (typeof refreshDayHeaders === 'function') refreshDayHeaders();
+  const k = getWeekKey(0);
+  attachFirebaseListener(k);
+  loadWeek(k);
+  // 일간 모드면 오늘 요일로
+  if (viewMode === 'day') setDayView(todayIdx);
+});
+
+// 검색 버튼 → 날짜 입력 prompt
+document.getElementById('btnSearch').addEventListener('click', () => {
+  const today = new Date();
+  const def = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const input = prompt('이동할 날짜를 입력하세요 (YYYY-MM-DD)', def);
+  if (input) jumpToDate(input);
+});
+
+// 설정 버튼 (현재는 안내, 추후 확장)
+document.getElementById('btnSettings').addEventListener('click', () => {
+  showToast('⚙️ 설정은 곧 추가될 예정이에요');
+});
+
+// 저장 상태 배지 업데이트
+function setSaveBadge(state) {
+  const badge = document.getElementById('saveBadge');
+  const text  = document.getElementById('saveBadgeText');
+  if (!badge) return;
+  badge.classList.remove('synced','saving','offline');
+  if (state === 'synced')  { badge.classList.add('synced');  text.textContent = '저장됨'; }
+  else if (state === 'saving') { badge.classList.add('saving'); text.textContent = '저장 중'; }
+  else if (state === 'offline'){ badge.classList.add('offline');text.textContent = '오프라인'; }
+  else { text.textContent = '로그인 필요'; }
+}
 
 /* ── Google 로그인/로그아웃 ─────────────────── */
 document.getElementById('googleLoginBtn').addEventListener('click', () => {
