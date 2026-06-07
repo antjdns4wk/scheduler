@@ -1338,7 +1338,7 @@
 
 <div class="tip">
   요일 클릭 → 일별 통계 &nbsp;|&nbsp; 📊 주간 통계 버튼 → 주간 요약 &nbsp;|&nbsp;
-  빈 칸 클릭/드래그로 생성 &nbsp;|&nbsp; 블록 더블클릭(길게 누르기) = 이름 수정 &nbsp;|&nbsp; 아래 모서리 드래그 = 크기 조절 &nbsp;|&nbsp; ✓완료 체크
+  빈 칸 클릭/드래그로 생성 &nbsp;|&nbsp; 더블클릭 = 이름 수정 &nbsp;|&nbsp; 모서리 드래그 = 크기 조절 &nbsp;|&nbsp; 단축키: <strong>T</strong> 오늘 · <strong>W</strong> 주간 · <strong>D</strong> 일간
 </div>
 
 <!-- Archive panel -->
@@ -3548,7 +3548,7 @@ wireMore('miExport', 'btnExport');
 wireMore('miImport', 'btnImport');
 
 // 오늘 버튼
-document.getElementById('btnToday').addEventListener('click', () => {
+function goToday() {
   weekOffset = 0;
   updateWeekTag();
   if (typeof refreshDayHeaders === 'function') refreshDayHeaders();
@@ -3557,6 +3557,32 @@ document.getElementById('btnToday').addEventListener('click', () => {
   loadWeek(k);
   // 일간 모드면 오늘 요일로
   if (viewMode === 'day') setDayView(todayIdx);
+}
+document.getElementById('btnToday').addEventListener('click', goToday);
+
+/* ── 전역 단축키 ────────────────────────────── */
+document.addEventListener('keydown', e => {
+  // 입력 중이거나 수정자 키와 함께면 무시
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  // 입력창이 열려있으면 무시
+  if (activeWrap) return;
+
+  const key = e.key.toLowerCase();
+  if (key === 't') {
+    e.preventDefault();
+    goToday();
+    showToast('📅 오늘로 이동했어요');
+  } else if (key === 'w') {
+    e.preventDefault();
+    switchView('week');
+    showToast('🗓 주간 보기');
+  } else if (key === 'd') {
+    e.preventDefault();
+    switchView('day');
+    showToast('📆 일간 보기');
+  }
 });
 
 // 검색 버튼 → 날짜 입력 prompt
