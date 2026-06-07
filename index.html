@@ -138,9 +138,41 @@
   .sinp { width: 100%; height: 100%; border: 2px solid var(--today); border-radius: 5px; background: #fff; font-size: 12px; font-family: 'Noto Sans KR', sans-serif; padding: 0 6px; color: var(--text); outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
 
   /* ── Block ───────────────────────────────────── */
-  .blk { position: absolute; left: 3px; right: 3px; border-radius: 6px; cursor: grab; user-select: none; z-index: 20; overflow: hidden; display: flex; flex-direction: column; padding: 4px 7px; box-shadow: 0 2px 6px rgba(0,0,0,.18); transition: box-shadow .12s; min-height: 4px; }
+  .blk {
+    position: absolute; left: 3px; right: 3px; border-radius: 6px;
+    cursor: grab; user-select: none; z-index: 20; overflow: hidden;
+    display: flex; flex-direction: column; padding: 4px 7px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.18); min-height: 4px;
+    /* spring 곡선으로 위치/크기 이동 */
+    transition: box-shadow .15s ease,
+                top .42s cubic-bezier(.34,1.56,.64,1),
+                height .3s cubic-bezier(.34,1.56,.64,1),
+                transform .25s cubic-bezier(.34,1.56,.64,1),
+                opacity .2s ease;
+    will-change: top, height, transform;
+  }
+  /* 생성 시 spring pop */
+  @keyframes blkPop {
+    0%   { transform: scale(.6); opacity: 0; }
+    60%  { transform: scale(1.04); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .blk.spawn { animation: blkPop .38s cubic-bezier(.34,1.56,.64,1); }
+  /* 삭제 시 축소 페이드 */
+  @keyframes blkVanish {
+    0%   { transform: scale(1); opacity: 1; }
+    100% { transform: scale(.7); opacity: 0; }
+  }
+  .blk.vanish { animation: blkVanish .24s ease forwards; pointer-events: none; }
   .blk:hover { box-shadow: 0 4px 12px rgba(0,0,0,.22); }
-  .blk.dg { cursor: grabbing; opacity: .85; z-index: 200; pointer-events: none; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+  .blk.dg {
+    cursor: grabbing; opacity: .9; z-index: 200; pointer-events: none;
+    box-shadow: 0 12px 32px rgba(0,0,0,.35);
+    transition: box-shadow .15s ease, transform .12s ease;
+    transform: scale(1.03);
+  }
+  /* 드래그 중 다른 블록이 비켜주는 느낌 — 그림자 강조 */
+  .blk.shift { transition: top .35s cubic-bezier(.34,1.56,.64,1); }
   /* 블록 라벨: 블록 크기와 무관하게 항상 블록 위에 표시 */
   .blk-lbl {
     position: absolute;
@@ -158,6 +190,20 @@
   /* 완료된 블록 */
   .blk.done { opacity: .55; }
   .blk.done .blk-lbl { text-decoration: line-through; }
+  /* 완료 체크 시 펄스 */
+  @keyframes donePulse {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+  .blk.just-done { animation: donePulse .4s cubic-bezier(.34,1.56,.64,1); }
+  /* 체크 버튼 체크마크 pop */
+  @keyframes checkPop {
+    0%   { transform: translateY(-50%) scale(0); }
+    60%  { transform: translateY(-50%) scale(1.3); }
+    100% { transform: translateY(-50%) scale(1); }
+  }
+  .blk-check.popped { animation: checkPop .35s cubic-bezier(.34,1.56,.64,1); }
   .blk-check {
     position: absolute; top: 50%; left: 5px; transform: translateY(-50%);
     width: 16px; height: 16px; border-radius: 50%;
@@ -1498,7 +1544,7 @@ function createBlockAt(colIdx, di, fineSi, label, mins) {
   const tempB = { id, label, mins, slots, col: colIdx, si: fineSi };
   const resolvedSi = resolveSlot(tempB, colIdx, fineSi);
   const b = { id, label, mins, slots, col: colIdx, si: resolvedSi, done: false };
-  blocks.push(b); renderBlock(b); updateRtLeg(); autoSave();
+  blocks.push(b); renderBlock(b, true); updateRtLeg(); autoSave();
 }
 
 /* ── Input ──────────────────────────────────── */
@@ -1538,18 +1584,18 @@ function handleInp(raw, col, si) {
   const fineSi = Math.round(si) * 3;  // 30min slot → 10min fine index
   const tempB = { id, label, mins, slots, col, si: fineSi };
   const resolvedSi = resolveSlot(tempB, col, fineSi);
-  const b = { id, label, mins, slots, col, si: resolvedSi };
-  blocks.push(b); renderBlock(b); updateRtLeg(); autoSave();
+  const b = { id, label, mins, slots, col, si: resolvedSi, done: false };
+  blocks.push(b); renderBlock(b, true); updateRtLeg(); autoSave();
 }
 
 /* ── Render block ───────────────────────────── */
-function renderBlock(b) {
+function renderBlock(b, animate) {
   const col = document.querySelector(`.dcol[data-col="${b.col}"]`);
   if (!col) return;
   const old = document.getElementById('b' + b.id); if (old) old.remove();
 
   const el = document.createElement('div');
-  el.className = 'blk' + (b.done ? ' done' : ''); el.id = 'b' + b.id;
+  el.className = 'blk' + (b.done ? ' done' : '') + (animate ? ' spawn' : ''); el.id = 'b' + b.id;
   el.style.top    = (Math.round(b.si) * PX) + 'px';  // si = 10분 단위
   const exactH = (b.mins / MIN_UNIT) * PX - 2;       // 30분=30px, 50분=48px
   el.style.height = Math.max(exactH, 4) + 'px';
@@ -1564,6 +1610,15 @@ function renderBlock(b) {
     b.done = !b.done;
     el.classList.toggle('done', b.done);
     chk.textContent = b.done ? '✓' : '';
+    if (b.done) {
+      // 완료 펄스 + 체크마크 pop
+      el.classList.remove('just-done'); void el.offsetWidth;
+      el.classList.add('just-done');
+      chk.classList.remove('popped'); void chk.offsetWidth;
+      chk.classList.add('popped');
+      // 햅틱 (지원 기기)
+      if (navigator.vibrate) navigator.vibrate(15);
+    }
     autoSave();
   });
 
@@ -1572,7 +1627,12 @@ function renderBlock(b) {
   const del = document.createElement('button'); del.className = 'blk-del'; del.textContent = '×';
 
   del.addEventListener('pointerdown', e => {
-    e.stopPropagation(); blocks = blocks.filter(x => x.id !== b.id); el.remove(); updateRtLeg(); autoSave();
+    e.stopPropagation();
+    blocks = blocks.filter(x => x.id !== b.id);
+    el.classList.add('vanish');
+    if (navigator.vibrate) navigator.vibrate(10);
+    setTimeout(() => el.remove(), 230);
+    updateRtLeg(); autoSave();
   });
   el.appendChild(chk); el.appendChild(lbl); el.appendChild(dur); el.appendChild(del);
   el.addEventListener('pointerdown', e => {
@@ -1688,12 +1748,56 @@ document.addEventListener('pointermove', e => {
 
   drag.nc = nc;
   drag.ns = ns;
+
+  // ── 다른 블록 비켜주기 프리뷰 ──
+  previewShift(b, nc, ns);
 }, { passive: false });
+
+/* 드래그 중 겹치는 블록을 시각적으로 밀어내기 */
+function previewShift(dragBlock, nc, ns) {
+  const dragStartM = ns * MIN_UNIT;
+  const dragEndM   = dragStartM + dragBlock.mins;
+
+  blocks.forEach(o => {
+    if (o.id === dragBlock.id) return;
+    const el = document.getElementById('b' + o.id);
+    if (!el) return;
+
+    // 같은 열이 아니면 원위치
+    if (o.col !== nc) { el.style.transform = ''; el.classList.remove('shift'); return; }
+
+    const oStartM = Math.round(o.si) * MIN_UNIT;
+    const oEndM   = oStartM + o.mins;
+    const overlap = dragStartM < oEndM && dragEndM > oStartM;
+
+    el.classList.add('shift');
+    if (overlap) {
+      // 드래그 블록 중심보다 위면 위로, 아래면 아래로 밀기
+      const dragMid = (dragStartM + dragEndM) / 2;
+      const oMid    = (oStartM + oEndM) / 2;
+      const dir = oMid < dragMid ? -1 : 1;
+      el.style.transform = `translateY(${dir * 8}px)`;
+      el.style.opacity = '.75';
+    } else {
+      el.style.transform = '';
+      el.style.opacity = '';
+    }
+  });
+}
+
+/* 비켜주기 효과 초기화 */
+function clearShift() {
+  blocks.forEach(o => {
+    const el = document.getElementById('b' + o.id);
+    if (el) { el.style.transform = ''; el.style.opacity = ''; el.classList.remove('shift'); }
+  });
+}
 
 /* ── On drop: commit + resolve collisions ─────── */
 function finishDrag() {
   if (!drag) return;
   stopEdgeScroll();
+  clearShift();
   const b = blocks.find(x => x.id === drag.id);
   if (b) {
     const col  = (drag.nc !== undefined) ? drag.nc : b.col;
