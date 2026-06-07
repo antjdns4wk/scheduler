@@ -154,6 +154,46 @@
     z-index: 1;
   }
   .blk-dur { display: none; }
+
+  /* 완료된 블록 */
+  .blk.done { opacity: .55; }
+  .blk.done .blk-lbl { text-decoration: line-through; }
+  .blk-check {
+    position: absolute; top: 50%; left: 5px; transform: translateY(-50%);
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,.7); background: rgba(255,255,255,.15);
+    cursor: pointer; display: none; align-items: center; justify-content: center;
+    font-size: 10px; color: #fff; z-index: 40; padding: 0; line-height: 1;
+  }
+  .blk:hover .blk-check { display: flex; }
+  .blk.done .blk-check { display: flex; background: rgba(255,255,255,.9); color: #16A34A; border-color: #fff; }
+  .blk.done .blk-lbl { padding-left: 20px; }
+  .blk:hover .blk-lbl { padding-left: 20px; }
+
+  /* 현재 시각 선 */
+  .now-line {
+    position: absolute; left: 0; right: 0; height: 0;
+    border-top: 2px solid #EF4444; z-index: 45; pointer-events: none;
+  }
+  .now-line::before {
+    content: ''; position: absolute; left: -4px; top: -5px;
+    width: 8px; height: 8px; border-radius: 50%; background: #EF4444;
+  }
+  .now-label {
+    position: absolute; left: 2px; top: -16px;
+    font-size: 9px; font-weight: 700; color: #EF4444;
+    background: var(--surface); padding: 0 3px; border-radius: 3px;
+    pointer-events: none; z-index: 46;
+  }
+
+  /* 드래그 생성 프리뷰 */
+  .drag-create-preview {
+    position: absolute; left: 3px; right: 3px;
+    background: rgba(29,78,216,.25); border: 1.5px dashed #1D4ED8;
+    border-radius: 6px; z-index: 60; pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #1D4ED8;
+  }
   .blk-del { position: absolute; top: 50%; right: 5px; transform: translateY(-50%); width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,.38); border: none; cursor: pointer; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; padding: 0; line-height: 1; z-index: 50; flex-shrink: 0; display: none; }
   .blk:hover .blk-del { display: flex; }
   .blk-del:hover { background: rgba(200,0,0,.8); }
@@ -1096,7 +1136,7 @@
 
 <div class="tip">
   요일 클릭 → 일별 통계 &nbsp;|&nbsp; 📊 주간 통계 버튼 → 주간 요약 &nbsp;|&nbsp;
-  빈 셀 클릭 → <strong>"업무 90"</strong> 입력 후 Enter &nbsp;|&nbsp; 5분 단위 입력 가능 &nbsp;|&nbsp; 블록 드래그로 이동
+  빈 칸 클릭/드래그로 블록 생성 &nbsp;|&nbsp; <strong>"업무 90"</strong> 입력 후 Enter &nbsp;|&nbsp; 블록 호버 시 ✓완료 체크 &nbsp;|&nbsp; 빨간 선 = 현재 시각
 </div>
 
 <!-- Archive panel -->
@@ -1313,10 +1353,7 @@ function buildGrid() {
       inp.className = 'sinp'; inp.type = 'text'; inp.placeholder = '업무 30';
       w.appendChild(inp); sl.appendChild(w);
 
-      sl.addEventListener('pointerdown', e => {
-        if (e.target.closest('.blk')) return;
-        e.stopPropagation(); openInp(w, inp, di, si);
-      });
+      // 슬롯 입력창 데이터는 컬럼 pointerup에서 처리
       inp.addEventListener('keydown', e => {
         if (e.key === 'Enter')       { handleInp(inp.value, di, si); closeInp(); }
         else if (e.key === 'Escape') closeInp();
@@ -1325,8 +1362,142 @@ function buildGrid() {
       inp.addEventListener('blur', () => setTimeout(closeInp, 150));
       col.appendChild(sl);
     }
+    // 컬럼 레벨 드래그 생성 (빈 영역 드래그 → 시간 범위)
+    attachDragCreate(col, di);
     cols.appendChild(col);
   }
+}
+
+/* ── 드래그로 블록 생성 ─────────────────────── */
+let dragCreate = null;
+
+function attachDragCreate(col, di) {
+  col.addEventListener('pointerdown', e => {
+    // 블록이나 입력창 위에서는 무시
+    if (e.target.closest('.blk') || e.target.closest('.sinp-w')) return;
+    if (drag) return;  // 블록 드래그 중이면 무시
+
+    const rect = col.getBoundingClientRect();
+    const startY = e.clientY - rect.top;
+    const startFineSi = Math.floor(startY / PX);
+
+    dragCreate = {
+      col, di, startFineSi,
+      curFineSi: startFineSi,
+      moved: false,
+      preview: null,
+      pointerId: e.pointerId,
+    };
+    col.setPointerCapture(e.pointerId);
+  });
+
+  col.addEventListener('pointermove', e => {
+    if (!dragCreate || dragCreate.col !== col) return;
+    const rect = col.getBoundingClientRect();
+    const curY = e.clientY - rect.top;
+    const curFineSi = Math.max(0, Math.min(N_FINE, Math.round(curY / PX)));
+
+    // 5px 이상 움직여야 드래그로 인정
+    if (Math.abs((curFineSi - dragCreate.startFineSi) * PX) >= PX) {
+      dragCreate.moved = true;
+    }
+    dragCreate.curFineSi = curFineSi;
+
+    if (dragCreate.moved) {
+      if (!dragCreate.preview) {
+        const p = document.createElement('div');
+        p.className = 'drag-create-preview';
+        col.appendChild(p);
+        dragCreate.preview = p;
+      }
+      const top = Math.min(dragCreate.startFineSi, curFineSi);
+      const bot = Math.max(dragCreate.startFineSi, curFineSi);
+      const mins = (bot - top) * MIN_UNIT;
+      dragCreate.preview.style.top    = (top * PX) + 'px';
+      dragCreate.preview.style.height = Math.max((bot - top) * PX, PX) + 'px';
+      dragCreate.preview.textContent  = mins >= 10 ? fmtTime(mins) : '';
+    }
+  });
+
+  col.addEventListener('pointerup', e => {
+    if (!dragCreate || dragCreate.col !== col) return;
+    const dc = dragCreate;
+    dragCreate = null;
+    if (dc.preview) dc.preview.remove();
+
+    if (dc.moved) {
+      // 드래그 생성: 시간 범위 결정 후 라벨 입력
+      const top  = Math.min(dc.startFineSi, dc.curFineSi);
+      const bot  = Math.max(dc.startFineSi, dc.curFineSi);
+      const mins = Math.max((bot - top) * MIN_UNIT, 10);
+      openDragCreateInput(dc.col, dc.di, top, mins);
+    } else {
+      // 단순 클릭: 클릭한 30분 슬롯에 입력창 열기
+      if (e.target.closest('.blk')) return;
+      const rect = col.getBoundingClientRect();
+      const clickY = e.clientY - rect.top;
+      const si30 = Math.floor(clickY / (PX * 3));  // 30분 슬롯 인덱스
+      const sl = col.querySelector(`.sl[data-si="${si30}"]`);
+      if (sl) {
+        const w = sl.querySelector('.sinp-w');
+        const inp = sl.querySelector('.sinp');
+        if (w && inp) openInp(w, inp, di, si30);
+      }
+    }
+  });
+
+  col.addEventListener('pointercancel', () => {
+    if (dragCreate && dragCreate.preview) dragCreate.preview.remove();
+    dragCreate = null;
+  });
+}
+
+// 드래그 생성 후 라벨 입력 받기
+function openDragCreateInput(col, di, fineSi, mins) {
+  closeInp();
+  const wrap = document.createElement('div');
+  wrap.className = 'sinp-w on';
+  wrap.style.top    = (fineSi * PX) + 'px';
+  wrap.style.height = Math.max(mins / MIN_UNIT * PX, PX) + 'px';
+  wrap.style.left = '2px'; wrap.style.right = '2px'; wrap.style.bottom = 'auto';
+
+  const inp = document.createElement('input');
+  inp.className = 'sinp';
+  inp.type = 'text';
+  inp.placeholder = `라벨 입력 (${fmtTime(mins)})`;
+  wrap.appendChild(inp);
+  col.appendChild(wrap);
+  activeWrap = wrap;
+  requestAnimationFrame(() => inp.focus());
+
+  function commit() {
+    const label = inp.value.trim();
+    if (label) {
+      // 숫자 없이 라벨만 입력하면 드래그한 mins 사용
+      const m = label.match(/^(.+?)\s+(\d+)$/);
+      const finalLabel = m ? m[1].trim() : label;
+      const finalMins  = m ? snap10(parseInt(m[2])) : mins;
+      createBlockAt(col.dataset.col * 1, di, fineSi, finalLabel, finalMins);
+    }
+    wrap.remove();
+    activeWrap = null;
+  }
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { commit(); }
+    else if (e.key === 'Escape') { wrap.remove(); activeWrap = null; }
+    e.stopPropagation();
+  });
+  inp.addEventListener('blur', () => setTimeout(() => { if (wrap.parentElement) commit(); }, 150));
+}
+
+// 특정 위치에 블록 생성
+function createBlockAt(colIdx, di, fineSi, label, mins) {
+  const slots = mins / MIN_UNIT;
+  const id = Date.now() + Math.random();
+  const tempB = { id, label, mins, slots, col: colIdx, si: fineSi };
+  const resolvedSi = resolveSlot(tempB, colIdx, fineSi);
+  const b = { id, label, mins, slots, col: colIdx, si: resolvedSi, done: false };
+  blocks.push(b); renderBlock(b); updateRtLeg(); autoSave();
 }
 
 /* ── Input ──────────────────────────────────── */
@@ -1363,11 +1534,23 @@ function renderBlock(b) {
   const old = document.getElementById('b' + b.id); if (old) old.remove();
 
   const el = document.createElement('div');
-  el.className = 'blk'; el.id = 'b' + b.id;
+  el.className = 'blk' + (b.done ? ' done' : ''); el.id = 'b' + b.id;
   el.style.top    = (Math.round(b.si) * PX) + 'px';  // si = 10분 단위
   const exactH = (b.mins / MIN_UNIT) * PX - 2;       // 30분=30px, 50분=48px
   el.style.height = Math.max(exactH, 4) + 'px';
   el.style.background = pal(b.label);
+
+  // 완료 체크 버튼
+  const chk = document.createElement('button');
+  chk.className = 'blk-check';
+  chk.textContent = b.done ? '✓' : '';
+  chk.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    b.done = !b.done;
+    el.classList.toggle('done', b.done);
+    chk.textContent = b.done ? '✓' : '';
+    autoSave();
+  });
 
   const lbl = document.createElement('div'); lbl.className = 'blk-lbl'; lbl.textContent = b.label + ' ' + b.mins + '분';
   const dur = document.createElement('div'); dur.className = 'blk-dur'; dur.style.display = 'none';
@@ -1376,7 +1559,7 @@ function renderBlock(b) {
   del.addEventListener('pointerdown', e => {
     e.stopPropagation(); blocks = blocks.filter(x => x.id !== b.id); el.remove(); updateRtLeg(); autoSave();
   });
-  el.appendChild(lbl); el.appendChild(dur); el.appendChild(del);
+  el.appendChild(chk); el.appendChild(lbl); el.appendChild(dur); el.appendChild(del);
   el.addEventListener('pointerdown', e => {
     if (e.target === del) return;
     e.preventDefault(); e.stopPropagation(); closeInp();
@@ -1569,6 +1752,25 @@ function openStats(dayIdx) {
     <span class="total-label">총 일정 시간</span>
     <span class="total-val">${fmtTime(scheduledMins)} <span style="color:var(--text-hint);font-weight:400;font-size:11px;">/ ${fmtTime(TOTAL_MINS)}</span></span>`;
   body.appendChild(totalRow);
+
+  // 완료율 (계획 vs 실제)
+  const doneMins = dayBlocks.filter(b => b.done).reduce((s, b) => s + b.mins, 0);
+  const donePct  = scheduledMins > 0 ? Math.round(doneMins / scheduledMins * 100) : 0;
+  if (dayBlocks.length > 0) {
+    const doneRow = document.createElement('div');
+    doneRow.className = 'total-row';
+    doneRow.style.marginTop = '8px';
+    const barColor = donePct >= 80 ? '#16A34A' : donePct >= 50 ? '#EB8E55' : '#DC2626';
+    doneRow.innerHTML = `
+      <span class="total-label">✅ 완료율</span>
+      <span class="total-val" style="color:${barColor}">${donePct}% <span style="color:var(--text-hint);font-weight:400;font-size:11px;">(${fmtTime(doneMins)})</span></span>`;
+    body.appendChild(doneRow);
+    // 완료율 진행 바
+    const dbar = document.createElement('div');
+    dbar.style.cssText = `height:6px;background:var(--bg);border-radius:3px;overflow:hidden;margin:6px 0 14px;`;
+    dbar.innerHTML = `<div style="height:100%;width:${donePct}%;background:${barColor};border-radius:3px;transition:width .4s;"></div>`;
+    body.appendChild(dbar);
+  }
 
   body.appendChild(stackBar);
 
@@ -1764,13 +1966,50 @@ document.getElementById('modalOverlay').addEventListener('click', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 /* ── Scroll sync ────────────────────────────── */
+/* ── 현재 시각 선 ────────────────────────────── */
+function updateNowLine() {
+  // 기존 제거
+  document.querySelectorAll('.now-line, .now-label').forEach(e => e.remove());
+
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes();
+  // 스케줄 범위 밖이면 표시 안 함
+  if (h < S_HR || h >= E_HR) return;
+
+  const minsFromStart = (h - S_HR) * 60 + m;
+  const topPx = (minsFromStart / MIN_UNIT) * PX;
+
+  // 오늘 요일 컬럼에만 표시
+  const todayCol = document.querySelector(`.dcol[data-col="${todayIdx}"]`);
+  if (!todayCol) return;
+
+  const line = document.createElement('div');
+  line.className = 'now-line';
+  line.style.top = topPx + 'px';
+
+  const label = document.createElement('div');
+  label.className = 'now-label';
+  label.style.top = topPx + 'px';
+  label.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+
+  todayCol.appendChild(line);
+  todayCol.appendChild(label);
+}
+
+// 1분마다 갱신
+setInterval(updateNowLine, 60000);
+
 function syncScroll() {
   const gs = document.getElementById('gscroll');
   const ti = document.getElementById('taxisInner');
   requestAnimationFrame(() => {
     const hh = document.getElementById('dhdrs').getBoundingClientRect().height;
     document.getElementById('axSp').style.height = hh + 'px';
-    gs.scrollTop = (7 - S_HR) * PX * 6;  // 2시간 * 6슬롯 * 10px
+    // 현재 시각 기준으로 스크롤 (현재 시각 - 1시간 위치)
+    const now = new Date();
+    const curH = now.getHours();
+    const scrollH = (curH >= S_HR && curH < E_HR) ? Math.max(S_HR, curH - 1) : 7;
+    gs.scrollTop = (scrollH - S_HR) * PX * 6;
   });
   gs.addEventListener('scroll', () => { ti.style.transform = `translateY(-${gs.scrollTop}px)`; });
 }
@@ -2776,6 +3015,7 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 
 buildAxis(); buildGrid(); syncScroll();
 updateWeekTag();
+updateNowLine();  // 현재 시각 선 표시
 // Firebase 초기화 (로그인 상태 감지 후 자동 로드)
 initFirebase();
 // 모바일이면 일간 모드로 시작
