@@ -2679,7 +2679,16 @@ async function getAllSavedKeys() {
 /* ── Auto-save ───────────────────────────────── */
 function autoSave() {
   const key = getWeekKey(weekOffset);
-  saveWeekData(key, { key, label: getWeekLabel(weekOffset), savedAt: new Date().toISOString(), blocks: blocks.map(b => ({...b})) });
+  myLastSaveAt = Date.now();
+  // 중복 ID 제거 후 저장
+  const seen = new Set();
+  const cleanBlocks = blocks.filter(b => {
+    if (seen.has(b.id)) return false;
+    seen.add(b.id);
+    return true;
+  });
+  blocks = cleanBlocks;
+  saveWeekData(key, { key, label: getWeekLabel(weekOffset), savedAt: new Date().toISOString(), blocks: cleanBlocks.map(b => ({...b})) });
 }
 
 /* ── Load week ───────────────────────────────── */
@@ -2688,7 +2697,23 @@ async function loadWeek(key) {
   blocks = [];
   showToast('⏳ 불러오는 중...');
   const data = await loadWeekData(key);
-  if (data && data.blocks) { data.blocks.forEach(b => { blocks.push(b); renderBlock(b); }); }
+  if (data && data.blocks) {
+    const origCount = data.blocks.length;
+    // ID 중복 제거 + mins 유효성 검사
+    const seen = new Set();
+    data.blocks.forEach(b => {
+      if (seen.has(b.id)) return;        // 중복 방지
+      if (!b.mins || b.mins > 1140) return;  // 비정상 데이터 방지 (하루 최대 19시간)
+      seen.add(b.id);
+      blocks.push(b);
+      renderBlock(b);
+    });
+    // 중복/이상 데이터가 있었으면 정리된 버전으로 재저장
+    if (blocks.length < origCount) {
+      console.log(`데이터 정리: ${origCount} → ${blocks.length}`);
+      setTimeout(() => autoSave(), 500);
+    }
+  }
   updateRtLeg();
   showToast(fbConnected ? '🟢 동기화 완료' : '📂 로컬에서 불러왔어요');
 }
@@ -3053,22 +3078,35 @@ document.getElementById('tplNameInput').addEventListener('keydown', e => {
 let fbListenerKey = null;
 let fbListenerRef = null;
 
+let myLastSaveAt = 0;  // 내가 마지막으로 저장한 시각
+
 function attachFirebaseListener(key) {
   if (!db) return;
   if (fbListenerRef) { fbListenerRef.off(); fbListenerRef = null; }
   fbListenerKey = key;
   fbListenerRef = db.ref(fbWeekPath(key));
   fbListenerRef.on('value', snap => {
-    // 내가 방금 저장한 건 무시 (autoSave가 이미 반영함)
     if (!snap.exists()) return;
     const data = snap.val();
     if (!data || !data.blocks) return;
-    // 현재 주이고 드래그 중이 아닐 때만 반영
     if (getWeekKey(weekOffset) !== key) return;
     if (drag) return;
+    // 내가 방금(2초 이내) 저장한 거면 무시 (중복 렌더 방지)
+    if (Date.now() - myLastSaveAt < 2000) return;
+    // 입력창 열려있으면 무시
+    if (activeWrap) return;
+
+    // ID 중복 제거 + 유효성 검사
     blocks.forEach(b => { const el = document.getElementById('b'+b.id); if (el) el.remove(); });
     blocks = [];
-    data.blocks.forEach(b => { blocks.push(b); renderBlock(b); });
+    const seen = new Set();
+    data.blocks.forEach(b => {
+      if (seen.has(b.id)) return;
+      if (!b.mins || b.mins > 1140) return;
+      seen.add(b.id);
+      blocks.push(b);
+      renderBlock(b);
+    });
     updateRtLeg();
   });
 }
