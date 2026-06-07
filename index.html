@@ -211,10 +211,10 @@
     cursor: pointer; display: none; align-items: center; justify-content: center;
     font-size: 10px; color: #fff; z-index: 40; padding: 0; line-height: 1;
   }
-  .blk:hover .blk-check { display: flex; }
+  .blk:hover .blk-check, .blk.active .blk-check { display: flex; }
   .blk.done .blk-check { display: flex; background: rgba(255,255,255,.9); color: #16A34A; border-color: #fff; }
   .blk.done .blk-lbl { padding-left: 20px; }
-  .blk:hover .blk-lbl { padding-left: 20px; }
+  .blk:hover .blk-lbl, .blk.active .blk-lbl { padding-left: 20px; }
 
   /* 현재 시각 선 */
   .now-line {
@@ -241,7 +241,7 @@
     font-size: 11px; font-weight: 700; color: #1D4ED8;
   }
   .blk-del { position: absolute; top: 50%; right: 5px; transform: translateY(-50%); width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,.38); border: none; cursor: pointer; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; padding: 0; line-height: 1; z-index: 50; flex-shrink: 0; display: none; }
-  .blk:hover .blk-del { display: flex; }
+  .blk:hover .blk-del, .blk.active .blk-del { display: flex; }
   .blk-del:hover { background: rgba(200,0,0,.8); }
 
   /* 블록 크기 조절 핸들 (아래 가장자리) */
@@ -256,8 +256,9 @@
     width: 24px; height: 3px; border-radius: 2px;
     background: rgba(255,255,255,.6);
   }
-  .blk:hover .blk-resize { display: block; }
+  .blk:hover .blk-resize, .blk.active .blk-resize { display: block; }
   .blk.resizing { transition: none; z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+  .blk.active { z-index: 100; box-shadow: 0 0 0 2px rgba(255,255,255,.8), 0 4px 14px rgba(0,0,0,.3); }
   .blk.resizing .blk-resize::after { background: #fff; }
 
   /* 이름 수정 입력창 */
@@ -991,6 +992,12 @@
 
     /* 블록 라벨 크기 */
     .blk-lbl { font-size: 9px; }
+    /* 모바일: 체크/삭제 버튼 크게 (터치하기 쉽게) */
+    .blk-check { width: 22px; height: 22px; font-size: 13px; left: 4px; }
+    .blk-del   { width: 22px; height: 22px; font-size: 14px; right: 4px; }
+    .blk.active .blk-lbl { padding-left: 26px; padding-right: 26px; }
+    .blk-resize { height: 14px; }
+    .blk-resize::after { width: 32px; height: 4px; bottom: 4px; }
 
     /* 일간 모드: 메모 패널 숨김 (하단 탭으로 전환) */
     .memo-panel {
@@ -1718,14 +1725,26 @@ function renderBlock(b, animate) {
       }
     }, 500);
   });
-  // 움직이면 long-press 취소
-  el.addEventListener('pointermove', () => {
+  // 움직이면 long-press 취소 + moved 판정
+  el.addEventListener('pointermove', e => {
+    if (drag && drag.startX !== undefined && !drag.moved) {
+      const dist = Math.abs(e.clientX - drag.startX) + Math.abs(e.clientY - drag.startY);
+      if (dist > 6) drag.moved = true;
+    }
     if (drag && drag.moved && longPressTimer) {
       clearTimeout(longPressTimer); longPressTimer = null;
     }
   });
-  el.addEventListener('pointerup', () => {
+  el.addEventListener('pointerup', e => {
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+    // 탭(이동 없음)이면 active 토글 → 버튼 표시 (모바일)
+    if (drag && !drag.moved && isMobile()) {
+      e.stopPropagation();
+      const wasActive = el.classList.contains('active');
+      // 다른 블록 active 해제
+      document.querySelectorAll('.blk.active').forEach(x => x.classList.remove('active'));
+      if (!wasActive) el.classList.add('active');
+    }
   });
   col.appendChild(el);
   // if currently in day-view and this col is hidden, don't show
@@ -1868,6 +1887,13 @@ document.addEventListener('pointerdown', e => {
   const inp = activeWrap.querySelector('.sinp');
   if (inp && (e.target === inp || activeWrap.contains(e.target))) return;
   closeInp();
+}, { capture: true });
+
+// 블록 바깥 탭 시 active 해제 (모바일 버튼 숨기기)
+document.addEventListener('pointerdown', e => {
+  if (!e.target.closest('.blk')) {
+    document.querySelectorAll('.blk.active').forEach(x => x.classList.remove('active'));
+  }
 }, { capture: true });
 
 document.addEventListener('pointermove', e => {
