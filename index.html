@@ -1381,6 +1381,7 @@ function attachDragCreate(col, di) {
     const startY = e.clientY - rect.top;
     const startFineSi = Math.floor(startY / PX);
 
+    closeInp();  // 입력창 열려있으면 닫기
     dragCreate = {
       col, di, startFineSi,
       curFineSi: startFineSi,
@@ -1506,7 +1507,21 @@ function openInp(w, inp, di, si) {
   inp.value = ''; requestAnimationFrame(() => inp.focus());
 }
 function closeInp() {
-  if (activeWrap) { activeWrap.classList.remove('on'); activeWrap = null; }
+  if (activeWrap) {
+    // 동적 생성된 wrap (드래그 생성 입력창)은 DOM에서 제거
+    if (!activeWrap.classList.contains('sinp-w') || !activeWrap.parentElement) {
+      activeWrap.remove?.();
+    } else {
+      activeWrap.classList.remove('on');
+    }
+    activeWrap = null;
+  }
+  // 혹시 남아있는 동적 입력창도 제거
+  document.querySelectorAll('.sinp-w.on').forEach(w => w.classList.remove('on'));
+  // 드래그 생성 임시 wrap 제거
+  document.querySelectorAll('.sinp-w[style]').forEach(w => {
+    if (w.style.position || w.style.bottom === 'auto') w.remove();
+  });
 }
 function snap10(n) { return Math.max(10, Math.round(n / 10) * 10); }
 
@@ -1630,6 +1645,14 @@ function startEdgeScroll(gs, dir) {
 function stopEdgeScroll() {
   if (edgeScrollRAF) { cancelAnimationFrame(edgeScrollRAF); edgeScrollRAF = null; }
 }
+
+// 입력창 외부 클릭 시 항상 닫기
+document.addEventListener('pointerdown', e => {
+  if (!activeWrap) return;
+  const inp = activeWrap.querySelector('.sinp');
+  if (inp && (e.target === inp || activeWrap.contains(e.target))) return;
+  closeInp();
+}, { capture: true });
 
 document.addEventListener('pointermove', e => {
   if (!drag) return;
