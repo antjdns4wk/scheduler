@@ -118,8 +118,8 @@
   .dcol  { border-right: 1px solid var(--border); position: relative; background: var(--surface); }
   .dcol:last-child { border-right: none; }
   .dcol.weekend { background: rgba(248,250,255,.6); }
-  .dcol.today-col { background: rgba(187,247,208,.25); }  /* 옅은 초록 */
-  .dcol.today-col.weekend { background: rgba(187,247,208,.3); }
+  .dcol.today-col { background: rgba(134,239,172,.35) !important; }  /* 오늘 열: 옅은 초록 */
+  .dcol.today-col.weekend { background: rgba(134,239,172,.4) !important; }
   /* 블록 위에 항상 보이는 시간 격자선 오버레이 */
   .dcol::after {
     content: '';
@@ -1291,6 +1291,7 @@ function buildGrid() {
   for (let di = 0; di < 7; di++) {
     const col = document.createElement('div');
     col.className = 'dcol' + (di >= 5 ? ' weekend' : '') + (di === todayIdx ? ' today-col' : '');
+    if (di === todayIdx) col.style.background = 'rgba(134,239,172,.35)';
     col.dataset.col = di;
     col.style.height = (N_SLOTS * PX * 3) + 'px';
     col.style.backgroundImage = '';
