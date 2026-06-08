@@ -1503,6 +1503,10 @@ let blocks = [];
 let activeWrap = null;
 let drag = null;
 let resizing = null;
+let _idCounter = 0;
+function genId() {
+  return 'blk_' + Date.now().toString(36) + '_' + (_idCounter++).toString(36) + '_' + Math.floor(Math.random()*1e6).toString(36);
+}
 
 const todayIdx = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
 
@@ -1722,7 +1726,7 @@ function openDragCreateInput(col, di, fineSi, mins) {
 // 특정 위치에 블록 생성
 function createBlockAt(colIdx, di, fineSi, label, mins) {
   const slots = mins / MIN_UNIT;
-  const id = Date.now() + Math.random();
+  const id = genId();
   const tempB = { id, label, mins, slots, col: colIdx, si: fineSi };
   const resolvedSi = resolveSlot(tempB, colIdx, fineSi);
   const b = { id, label, mins, slots, col: colIdx, si: resolvedSi, done: false };
@@ -1759,7 +1763,7 @@ function handleInp(raw, col, si) {
   const label = m ? m[1].trim() : t;
   const mins  = m ? snap10(parseInt(m[2])) : 30;
   const slots = mins / MIN_UNIT;
-  const id    = Date.now() + Math.random();
+  const id    = genId();
 
   // 클릭한 슬롯을 분으로 변환 (30분 단위 그리드)
   // 클릭한 30분 슬롯 → 10분 단위 fine si로 변환
@@ -2149,10 +2153,14 @@ function finishDrag() {
     const resolved = resolveSlot(b, col, intSi);
     b.col = col;
     b.si  = resolved;
-    drag.el.style.top = (resolved * PX) + 'px';
-    const tc = document.querySelector(`.dcol[data-col="${col}"]`);
-    if (tc && drag.el.parentElement !== tc) tc.appendChild(drag.el);
+    // dg 클래스 먼저 제거 후 renderBlock으로 완전히 다시 그림 (DOM 중복/잔존 방지)
+    drag.el.classList.remove('dg');
+    const elId = b.id;
+    drag = null;
+    document.getElementById('gscroll').style.overflowY = 'auto';
+    renderBlock(b);  // 기존 el 제거 후 새로 그림 → resolved 위치에 정확히 안착
     autoSave();
+    return;
   }
   drag.el.classList.remove('dg');
   drag = null;
@@ -3125,7 +3133,7 @@ document.getElementById('fileInput').addEventListener('change', function() {
 
       // Load each block — re-assign fresh id to avoid collisions
       importedBlocks.forEach(b => {
-        const fresh = { ...b, id: Date.now() + Math.random() };
+        const fresh = { ...b, id: genId() };
         blocks.push(fresh);
         renderBlock(fresh);
       });
@@ -3276,7 +3284,7 @@ function applyTemplate(id, applyMode) {
   }
 
   data.blocks.forEach(b => {
-    const fresh = { ...b, id: Date.now() + Math.random() };
+    const fresh = { ...b, id: genId() };
     // collision resolve in same col
     fresh.si = resolveSlot(fresh, fresh.col, fresh.si);
     blocks.push(fresh);
