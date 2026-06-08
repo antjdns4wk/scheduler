@@ -731,6 +731,32 @@
   /* day-view: gwrap도 최소 너비 제한 해제 */
   .gscroll.day-view-scroll .gwrap { min-width: 0; width: 100%; }
 
+  /* ── 일간 2트랙 (계획 | 실제) ─────────────────── */
+  .gcols.day-view .dcol.dual-track {
+    position: relative;
+  }
+  /* 트랙 구분선 (가운데) */
+  .gcols.day-view .dcol.dual-track::before {
+    content: ''; position: absolute; left: 50%; top: 0; bottom: 0;
+    width: 1px; background: var(--border-hr); z-index: 26; pointer-events: none;
+  }
+  /* 2트랙일 때 블록은 절반 너비 */
+  .gcols.day-view .dcol.dual-track .blk.track-0 { left: 3px;  right: calc(50% + 2px); }
+  .gcols.day-view .dcol.dual-track .blk.track-1 { left: calc(50% + 2px); right: 3px; }
+
+  /* 일간 트랙 헤더 라벨 */
+  .day-track-labels {
+    display: none;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+  }
+  .day-track-labels.show { display: flex; }
+  .day-track-labels .dtl {
+    flex: 1; text-align: center; padding: 6px 0;
+    font-size: 11px; font-weight: 700; color: var(--text-sub); letter-spacing: .3px;
+  }
+  .day-track-labels .dtl:first-child { border-right: 1px solid var(--border); }
+  .day-track-labels .dtl .dtl-sub { font-size: 9px; font-weight: 500; color: var(--text-hint); display: block; margin-top: 1px; }
+
   /* ── Day-view layout: schedule(1) + memo(4) ─────────── */
   .day-layout {
     display: flex; flex: 1; overflow: hidden;
@@ -1282,6 +1308,10 @@
       <div class="gscroll" id="gscroll">
         <div class="gwrap" id="gwrap">
           <div class="dhdrs" id="dhdrs"></div>
+          <div class="day-track-labels" id="dayTrackLabels">
+            <div class="dtl">📋 계획<span class="dtl-sub">하려는 일</span></div>
+            <div class="dtl">✅ 실제<span class="dtl-sub">한 일</span></div>
+          </div>
           <div class="gcols" id="gcols"></div>
         </div>
       </div>
@@ -1338,7 +1368,7 @@
 
 <div class="tip">
   요일 클릭 → 일별 통계 &nbsp;|&nbsp; 📊 주간 통계 버튼 → 주간 요약 &nbsp;|&nbsp;
-  빈 칸 클릭/드래그로 생성 &nbsp;|&nbsp; 더블클릭 = 이름 수정 &nbsp;|&nbsp; 모서리 드래그 = 크기 조절 &nbsp;|&nbsp; 단축키: <strong>T</strong> 오늘 · <strong>W</strong> 주간 · <strong>D</strong> 일간
+  빈 칸 클릭/드래그로 생성 &nbsp;|&nbsp; 더블클릭 = 이름 수정 &nbsp;|&nbsp; 모서리 = 크기 조절 &nbsp;|&nbsp; 일간 모드 = 왼쪽 계획·오른쪽 실제 &nbsp;|&nbsp; <strong>T</strong>오늘 <strong>W</strong>주간 <strong>D</strong>일간
 </div>
 
 <!-- Archive panel -->
@@ -1612,6 +1642,9 @@ function attachDragCreate(col, di) {
     const rect = col.getBoundingClientRect();
     const startY = e.clientY - rect.top;
     const startFineSi = Math.floor(startY / PX);
+    // 일간 2트랙: 클릭 X로 트랙 결정 (왼쪽=0 계획, 오른쪽=1 실제)
+    const isDual = col.classList.contains('dual-track');
+    const track = isDual ? ((e.clientX - rect.left) > rect.width / 2 ? 1 : 0) : 0;
 
     closeInp();  // 입력창 열려있으면 닫기
     dragCreate = {
@@ -1619,6 +1652,7 @@ function attachDragCreate(col, di) {
       curFineSi: startFineSi,
       moved: false,
       preview: null,
+      track,
       pointerId: e.pointerId,
     };
     col.setPointerCapture(e.pointerId);
@@ -1649,6 +1683,13 @@ function attachDragCreate(col, di) {
       dragCreate.preview.style.top    = (top * PX) + 'px';
       dragCreate.preview.style.height = Math.max((bot - top) * PX, PX) + 'px';
       dragCreate.preview.textContent  = mins >= 10 ? fmtTime(mins) : '';
+      // 2트랙이면 좌/우 절반에만 프리뷰
+      if (col.classList.contains('dual-track')) {
+        if (dragCreate.track === 1) { dragCreate.preview.style.left = 'calc(50% + 2px)'; dragCreate.preview.style.right = '3px'; }
+        else { dragCreate.preview.style.left = '3px'; dragCreate.preview.style.right = 'calc(50% + 2px)'; }
+      } else {
+        dragCreate.preview.style.left = '3px'; dragCreate.preview.style.right = '3px';
+      }
     }
   });
 
@@ -1663,18 +1704,32 @@ function attachDragCreate(col, di) {
       const top  = Math.min(dc.startFineSi, dc.curFineSi);
       const bot  = Math.max(dc.startFineSi, dc.curFineSi);
       const mins = Math.max((bot - top) * MIN_UNIT, 10);
-      openDragCreateInput(dc.col, dc.di, top, mins);
+      openDragCreateInput(dc.col, dc.di, top, mins, dc.track);
     } else {
       // 단순 클릭: 클릭한 30분 슬롯에 입력창 열기
       if (e.target.closest('.blk')) return;
       const rect = col.getBoundingClientRect();
       const clickY = e.clientY - rect.top;
       const si30 = Math.floor(clickY / (PX * 3));  // 30분 슬롯 인덱스
+      // 트랙 판단
+      const isDual = col.classList.contains('dual-track');
+      const clickTrack = isDual ? ((e.clientX - rect.left) > rect.width / 2 ? 1 : 0) : 0;
+      // 클릭한 위치(분 범위)에 같은 트랙 블록이 있으면 입력창 열지 않음
+      const clickStartM = si30 * 30;
+      const clickEndM   = clickStartM + 30;
+      const occupied = blocks.some(bk => {
+        if (bk.col !== di) return false;
+        if ((bk.track || 0) !== clickTrack) return false;
+        const bS = Math.round(bk.si) * MIN_UNIT;
+        const bE = bS + bk.mins;
+        return clickStartM < bE && clickEndM > bS;
+      });
+      if (occupied) return;
       const sl = col.querySelector(`.sl[data-si="${si30}"]`);
       if (sl) {
         const w = sl.querySelector('.sinp-w');
         const inp = sl.querySelector('.sinp');
-        if (w && inp) openInp(w, inp, di, si30);
+        if (w && inp) openInp(w, inp, di, si30, clickTrack);
       }
     }
   });
@@ -1686,13 +1741,20 @@ function attachDragCreate(col, di) {
 }
 
 // 드래그 생성 후 라벨 입력 받기
-function openDragCreateInput(col, di, fineSi, mins) {
+function openDragCreateInput(col, di, fineSi, mins, track) {
   closeInp();
   const wrap = document.createElement('div');
   wrap.className = 'sinp-w on';
   wrap.style.top    = (fineSi * PX) + 'px';
   wrap.style.height = Math.max(mins / MIN_UNIT * PX, PX) + 'px';
-  wrap.style.left = '2px'; wrap.style.right = '2px'; wrap.style.bottom = 'auto';
+  wrap.style.bottom = 'auto';
+  if (col.classList.contains('dual-track') && track === 1) {
+    wrap.style.left = 'calc(50% + 2px)'; wrap.style.right = '2px';
+  } else if (col.classList.contains('dual-track')) {
+    wrap.style.left = '2px'; wrap.style.right = 'calc(50% + 2px)';
+  } else {
+    wrap.style.left = '2px'; wrap.style.right = '2px';
+  }
 
   const inp = document.createElement('input');
   inp.className = 'sinp';
@@ -1710,7 +1772,7 @@ function openDragCreateInput(col, di, fineSi, mins) {
       const m = label.match(/^(.+?)\s+(\d+)$/);
       const finalLabel = m ? m[1].trim() : label;
       const finalMins  = m ? snap10(parseInt(m[2])) : mins;
-      createBlockAt(col.dataset.col * 1, di, fineSi, finalLabel, finalMins);
+      createBlockAt(col.dataset.col * 1, di, fineSi, finalLabel, finalMins, track);
     }
     wrap.remove();
     activeWrap = null;
@@ -1724,22 +1786,25 @@ function openDragCreateInput(col, di, fineSi, mins) {
 }
 
 // 특정 위치에 블록 생성
-function createBlockAt(colIdx, di, fineSi, label, mins) {
+function createBlockAt(colIdx, di, fineSi, label, mins, track) {
   const slots = mins / MIN_UNIT;
   const id = genId();
-  const tempB = { id, label, mins, slots, col: colIdx, si: fineSi };
+  const tk = track || 0;
+  const tempB = { id, label, mins, slots, col: colIdx, si: fineSi, track: tk };
   const resolvedSi = resolveSlot(tempB, colIdx, fineSi);
   if (resolvedSi === null) {
     showToast('⚠️ 공간이 부족해요. 더 짧게 만들거나 빈 시간에 추가하세요');
     return;
   }
-  const b = { id, label, mins, slots, col: colIdx, si: resolvedSi, done: false };
+  const b = { id, label, mins, slots, col: colIdx, si: resolvedSi, done: false, track: tk };
   blocks.push(b); renderBlock(b, true); updateRtLeg(); autoSave();
 }
 
 /* ── Input ──────────────────────────────────── */
-function openInp(w, inp, di, si) {
+let pendingTrack = 0;  // 입력창에서 생성될 블록의 트랙
+function openInp(w, inp, di, si, track) {
   closeInp(); w.classList.add('on'); activeWrap = w;
+  pendingTrack = track || 0;
   inp.value = ''; requestAnimationFrame(() => inp.focus());
 }
 function closeInp() {
@@ -1768,17 +1833,18 @@ function handleInp(raw, col, si) {
   const mins  = m ? snap10(parseInt(m[2])) : 30;
   const slots = mins / MIN_UNIT;
   const id    = genId();
+  const tk    = pendingTrack || 0;
 
   // 클릭한 슬롯을 분으로 변환 (30분 단위 그리드)
   // 클릭한 30분 슬롯 → 10분 단위 fine si로 변환
   const fineSi = Math.round(si) * 3;  // 30min slot → 10min fine index
-  const tempB = { id, label, mins, slots, col, si: fineSi };
+  const tempB = { id, label, mins, slots, col, si: fineSi, track: tk };
   const resolvedSi = resolveSlot(tempB, col, fineSi);
   if (resolvedSi === null) {
     showToast('⚠️ 공간이 부족해요. 더 짧게 만들거나 빈 시간에 추가하세요');
     return;
   }
-  const b = { id, label, mins, slots, col, si: resolvedSi, done: false };
+  const b = { id, label, mins, slots, col, si: resolvedSi, done: false, track: tk };
   blocks.push(b); renderBlock(b, true); updateRtLeg(); autoSave();
 }
 
@@ -1789,7 +1855,8 @@ function renderBlock(b, animate) {
   const old = document.getElementById('b' + b.id); if (old) old.remove();
 
   const el = document.createElement('div');
-  el.className = 'blk' + (b.done ? ' done' : '') + (animate ? ' spawn' : ''); el.id = 'b' + b.id;
+  const track = b.track || 0;  // 0=계획(왼쪽), 1=실제(오른쪽)
+  el.className = 'blk track-' + track + (b.done ? ' done' : '') + (animate ? ' spawn' : ''); el.id = 'b' + b.id;
   el.style.top    = (Math.round(b.si) * PX) + 'px';  // si = 10분 단위
   const exactH = (b.mins / MIN_UNIT) * PX - 1;       // 30분=30px, 블록 간 갭 최소화
   el.style.height = Math.max(exactH, 4) + 'px';
@@ -1982,13 +2049,11 @@ function finishResize() {
   document.getElementById('gscroll').style.overflowY = 'auto';
 
   const finalMins = r.previewMins || r.startMins;
-  console.log('[resize]', r.block.label, '시작=' + r.startMins + '분', '프리뷰=' + r.previewMins, '최종=' + finalMins + '분', 'si=' + r.block.si);
   r.block.mins  = finalMins;
   r.block.slots = finalMins / MIN_UNIT;
 
   // 겹침 해결 (크기 커지면서 다른 블록과 충돌할 수 있음)
   const resolved = resolveSlot(r.block, r.block.col, r.block.si);
-  console.log('[resize] resolveSlot 결과:', resolved, '(null이면 복원됨)');
   if (resolved === null) {
     // 커진 크기가 들어갈 자리 없음 → 원래 크기로 복원
     showToast('⚠️ 공간이 부족해 크기를 늘릴 수 없어요');
@@ -2008,11 +2073,10 @@ document.addEventListener('pointercancel', finishResize);
 /* ── Collision resolver (called only on drop) ── */
 function resolveSlot(b, col, wantedSi) {
   // ── 완전 분(minutes) 기반 겹침 판정 ──
-  // 슬롯 올림 없이 실제 mins로만 계산
-  // 단, 배치는 30분 슬롯 단위(정수 si)로만 가능
-
+  // 같은 트랙(track)끼리만 겹침 검사 (일간 2트랙 지원)
+  const myTrack = b.track || 0;
   const others = blocks
-    .filter(x => x.id !== b.id && x.col === col)
+    .filter(x => x.id !== b.id && x.col === col && (x.track || 0) === myTrack)
     .map(o => ({
       startM: Math.round(o.si) * MIN_UNIT,
       endM:   Math.round(o.si) * MIN_UNIT + o.mins   // 실제 분 끝
@@ -2122,6 +2186,15 @@ document.addEventListener('pointermove', e => {
   if (tc && drag.el.parentElement !== tc) tc.appendChild(drag.el);
   drag.el.style.top = (ns * PX) + 'px';
 
+  // 일간 2트랙: 드래그 중 좌우 위치로 트랙 변경
+  if (viewMode === 'day' && tc && tc.classList.contains('dual-track')) {
+    const tcr = tc.getBoundingClientRect();
+    const newTrack = (e.clientX - tcr.left) > tcr.width / 2 ? 1 : 0;
+    drag.nt = newTrack;
+    drag.el.classList.remove('track-0','track-1');
+    drag.el.classList.add('track-' + newTrack);
+  }
+
   drag.nc = nc;
   drag.ns = ns;
 
@@ -2133,14 +2206,15 @@ document.addEventListener('pointermove', e => {
 function previewShift(dragBlock, nc, ns) {
   const dragStartM = ns * MIN_UNIT;
   const dragEndM   = dragStartM + dragBlock.mins;
+  const dragTrack  = (drag && drag.nt !== undefined) ? drag.nt : (dragBlock.track || 0);
 
   blocks.forEach(o => {
     if (o.id === dragBlock.id) return;
     const el = document.getElementById('b' + o.id);
     if (!el) return;
 
-    // 같은 열이 아니면 원위치
-    if (o.col !== nc) { el.style.transform = ''; el.classList.remove('shift'); return; }
+    // 같은 열/트랙이 아니면 원위치
+    if (o.col !== nc || (o.track || 0) !== dragTrack) { el.style.transform = ''; el.classList.remove('shift'); return; }
 
     const oStartM = Math.round(o.si) * MIN_UNIT;
     const oEndM   = oStartM + o.mins;
@@ -2180,14 +2254,18 @@ function finishDrag() {
     // si는 항상 정수 슬롯으로 보정
     const rawSi   = (drag.ns !== undefined) ? drag.ns : b.si;
     const intSi   = Math.round(rawSi);  // 10분 단위 fine si
+    const prevTrack = b.track || 0;
+    // 트랙 확정 (일간 모드에서 좌우 이동 시)
+    if (drag.nt !== undefined) b.track = drag.nt;
     const resolved = resolveSlot(b, col, intSi);
     drag.el.classList.remove('dg');
     drag = null;
     document.getElementById('gscroll').style.overflowY = 'auto';
     if (resolved === null) {
-      // 옮길 자리 없음 → 원위치 복원
+      // 옮길 자리 없음 → 트랙/위치 원위치 복원
+      b.track = prevTrack;
       showToast('⚠️ 옮길 공간이 부족해요');
-      renderBlock(b);  // 원래 si로 다시 그림
+      renderBlock(b);
       return;
     }
     b.col = col;
@@ -2547,8 +2625,9 @@ function switchView(mode) {
     dayBar.classList.remove('show');
     btnW.classList.add('active'); btnD.classList.remove('active');
     // show all columns
-    document.querySelectorAll('.dcol').forEach(c => c.style.display = '');
+    document.querySelectorAll('.dcol').forEach(c => { c.style.display = ''; c.classList.remove('dual-track'); });
     document.querySelectorAll('.dhdr').forEach(c => c.style.display = '');
+    document.getElementById('dayTrackLabels').classList.remove('show');
     document.getElementById('memoPanel').classList.remove('show');
   } else {
     gcols.classList.add('day-view');
@@ -2770,13 +2849,17 @@ function closeColorPicker() {
 
 function setDayView(di) {
   dayView = di;
-  // hide all cols/headers except di
+  // hide all cols/headers except di, 보이는 컬럼은 dual-track
   document.querySelectorAll('.dcol').forEach(c => {
-    c.style.display = (parseInt(c.dataset.col) === di) ? '' : 'none';
+    const show = parseInt(c.dataset.col) === di;
+    c.style.display = show ? '' : 'none';
+    c.classList.toggle('dual-track', show);
   });
   document.querySelectorAll('.dhdr').forEach((c, i) => {
     c.style.display = (i === di) ? '' : 'none';
   });
+  // 트랙 라벨 표시
+  document.getElementById('dayTrackLabels').classList.add('show');
   // update nav label
   const lbl = document.getElementById('dayNavLabel');
   lbl.textContent = DAYS_EN[di] + '  ' + DAYS_KO[di].replace('요일','');
