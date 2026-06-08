@@ -1791,7 +1791,7 @@ function renderBlock(b, animate) {
   const el = document.createElement('div');
   el.className = 'blk' + (b.done ? ' done' : '') + (animate ? ' spawn' : ''); el.id = 'b' + b.id;
   el.style.top    = (Math.round(b.si) * PX) + 'px';  // si = 10분 단위
-  const exactH = (b.mins / MIN_UNIT) * PX - 2;       // 30분=30px, 50분=48px
+  const exactH = (b.mins / MIN_UNIT) * PX - 1;       // 30분=30px, 블록 간 갭 최소화
   el.style.height = Math.max(exactH, 4) + 'px';
   // 카드형: 연한 배경 + 진한 컬러바/텍스트
   const accent = pal(b.label);
@@ -1966,7 +1966,7 @@ document.addEventListener('pointermove', e => {
   // 최소 10분, 최대 범위 제한
   newMins = Math.max(10, Math.min(newMins, (N_FINE - resizing.block.si) * MIN_UNIT));
   // 미리보기
-  const exactH = (newMins / MIN_UNIT) * PX - 2;
+  const exactH = (newMins / MIN_UNIT) * PX - 1;
   resizing.el.style.height = Math.max(exactH, 4) + 'px';
   resizing.previewMins = newMins;
   // 라벨 업데이트
@@ -2028,7 +2028,18 @@ function resolveSlot(b, col, wantedSi) {
 
   if (fits(start)) return start;
 
-  // 가장 가까운 빈 슬롯 위아래 탐색
+  // 원하는 위치가 막혔으면: 겹친 블록 "바로 아래"에 딱 붙이기 우선
+  const blocker = others.find(o => {
+    const aS = start * MIN_UNIT, aE = aS + b.mins;
+    return aS < o.endM && aE > o.startM;
+  });
+  if (blocker) {
+    // 겹친 블록 끝 분 → 슬롯 인덱스 (올림)
+    const belowSi = Math.ceil(blocker.endM / MIN_UNIT);
+    if (belowSi <= maxSi && fits(belowSi)) return belowSi;
+  }
+
+  // 그 다음: 가장 가까운 빈 슬롯 위아래 탐색
   let up = start - 1, down = start + 1;
   while (up >= 0 || down <= maxSi) {
     if (down <= maxSi && fits(down)) return down;
@@ -2168,8 +2179,6 @@ function finishDrag() {
     const rawSi   = (drag.ns !== undefined) ? drag.ns : b.si;
     const intSi   = Math.round(rawSi);  // 10분 단위 fine si
     const resolved = resolveSlot(b, col, intSi);
-    console.log('[drag]', b.label, b.mins+'분', 'wanted si='+intSi, '→ resolved='+resolved,
-      '| 같은열 블록:', blocks.filter(x=>x.id!==b.id&&x.col===col).map(o=>`${o.label}@si${o.si}(${o.mins}m,끝si${o.si+o.mins/MIN_UNIT})`).join(', '));
     drag.el.classList.remove('dg');
     drag = null;
     document.getElementById('gscroll').style.overflowY = 'auto';
