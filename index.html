@@ -2168,6 +2168,8 @@ function finishDrag() {
     const rawSi   = (drag.ns !== undefined) ? drag.ns : b.si;
     const intSi   = Math.round(rawSi);  // 10분 단위 fine si
     const resolved = resolveSlot(b, col, intSi);
+    console.log('[drag]', b.label, b.mins+'분', 'wanted si='+intSi, '→ resolved='+resolved,
+      '| 같은열 블록:', blocks.filter(x=>x.id!==b.id&&x.col===col).map(o=>`${o.label}@si${o.si}(${o.mins}m,끝si${o.si+o.mins/MIN_UNIT})`).join(', '));
     drag.el.classList.remove('dg');
     drag = null;
     document.getElementById('gscroll').style.overflowY = 'auto';
