@@ -745,6 +745,8 @@
   /* 2트랙일 때 블록은 절반 너비 */
   .gcols.day-view .dcol.dual-track .blk.track-0 { left: 3px;  right: calc(50% + 2px); }
   .gcols.day-view .dcol.dual-track .blk.track-1 { left: calc(50% + 2px); right: 3px; }
+  /* 주간 보기에서는 실제(track-1) 블록 숨김 */
+  .gcols:not(.day-view) .blk.track-1 { display: none !important; }
 
   /* 일간 트랙 헤더 라벨 */
   .day-track-labels {
@@ -2304,7 +2306,8 @@ function updateRtLeg() {
 
 /* ── Stats modal ────────────────────────────── */
 function openStats(dayIdx) {
-  const dayBlocks = blocks.filter(b => b.col === dayIdx);
+  // 계획(track 0)만 통계에 포함, 실제(track 1)는 제외
+  const dayBlocks = blocks.filter(b => b.col === dayIdx && (b.track || 0) === 0);
 
   // 카테고리 단위로 집계 ("업무 딥워크 60" + "업무 루틴 30" → 업무: 90분)
   const tally = {};
@@ -2423,9 +2426,10 @@ function openWeekStats() {
   const DAYS_TOTAL = (E_HR - S_HR) * 60;  // mins per day
   const WEEK_TOTAL = DAYS_TOTAL * 7; // 7560
 
-  // per-day tally (카테고리 단위)
+  // per-day tally (카테고리 단위) — 계획(track 0)만
   const dayTally = Array.from({length:7}, () => ({}));
   blocks.forEach(b => {
+    if ((b.track || 0) !== 0) return;  // 실제(track 1) 제외
     const t = dayTally[b.col];
     const cat = catOf(b.label);
     t[cat] = (t[cat] || 0) + b.mins;
@@ -2434,9 +2438,10 @@ function openWeekStats() {
   // total per-day scheduled
   const dayMins = dayTally.map(t => Object.values(t).reduce((s,v)=>s+v,0));
 
-  // overall category tally (카테고리 단위)
+  // overall category tally (카테고리 단위) — 계획(track 0)만
   const catTally = {};
   blocks.forEach(b => {
+    if ((b.track || 0) !== 0) return;  // 실제(track 1) 제외
     const cat = catOf(b.label);
     catTally[cat] = (catTally[cat]||0) + b.mins;
   });
