@@ -1372,7 +1372,7 @@
 
 <div class="tip">
   요일 클릭 → 일별 통계 &nbsp;|&nbsp; 📊 주간 통계 버튼 → 주간 요약 &nbsp;|&nbsp;
-  빈 칸 클릭/드래그로 생성 &nbsp;|&nbsp; 더블클릭 = 이름 수정 &nbsp;|&nbsp; 모서리 = 크기 조절 &nbsp;|&nbsp; 일간 모드 = 왼쪽 계획·오른쪽 실제 &nbsp;|&nbsp; <strong>T</strong>오늘 <strong>W</strong>주간 <strong>D</strong>일간
+  빈 칸 클릭/드래그로 생성 &nbsp;|&nbsp; 더블클릭 = 이름 수정 &nbsp;|&nbsp; 모서리 = 크기 조절 &nbsp;|&nbsp; 일간 = 왼쪽 계획·오른쪽 실제 &nbsp;|&nbsp; <strong>← →</strong> 날짜 이동 · <strong>T</strong>오늘 <strong>W</strong>주간 <strong>D</strong>일간
 </div>
 
 <!-- Archive panel -->
@@ -1774,6 +1774,7 @@ function openDragCreateInput(col, di, fineSi, mins, track) {
   closeInp();
   const wrap = document.createElement('div');
   wrap.className = 'sinp-w on';
+  wrap.dataset.dynamic = '1';
   wrap.style.top    = (fineSi * PX) + 'px';
   wrap.style.height = Math.max(mins / MIN_UNIT * PX, PX) + 'px';
   wrap.style.bottom = 'auto';
@@ -1836,25 +1837,34 @@ function openInp(w, inp, di, si, track, fineSi) {
   closeInp(); w.classList.add('on'); activeWrap = w;
   pendingTrack = track || 0;
   pendingFineSi = (fineSi !== undefined) ? fineSi : null;
+  // 일간 2트랙: 입력창을 해당 트랙(좌/우 절반)에만 표시
+  const col = w.closest('.dcol');
+  if (col && col.classList.contains('dual-track')) {
+    if (pendingTrack === 1) { w.style.left = 'calc(50% + 2px)'; w.style.right = '3px'; }
+    else { w.style.left = '3px'; w.style.right = 'calc(50% + 2px)'; }
+  } else {
+    w.style.left = ''; w.style.right = '';
+  }
   inp.value = ''; requestAnimationFrame(() => inp.focus());
 }
 function closeInp() {
   pendingFineSi = null;
   if (activeWrap) {
-    // 동적 생성된 wrap (드래그 생성 입력창)은 DOM에서 제거
-    if (!activeWrap.classList.contains('sinp-w') || !activeWrap.parentElement) {
+    // 슬롯 고정 입력창은 left/right 초기화 후 닫기, 동적 생성 wrap은 제거
+    if (activeWrap.dataset && activeWrap.dataset.dynamic === '1') {
       activeWrap.remove?.();
     } else {
       activeWrap.classList.remove('on');
+      activeWrap.style.left = ''; activeWrap.style.right = '';
     }
     activeWrap = null;
   }
-  // 혹시 남아있는 동적 입력창도 제거
-  document.querySelectorAll('.sinp-w.on').forEach(w => w.classList.remove('on'));
-  // 드래그 생성 임시 wrap 제거
-  document.querySelectorAll('.sinp-w[style]').forEach(w => {
-    if (w.style.position || w.style.bottom === 'auto') w.remove();
+  // 슬롯 입력창들 닫기 + 좌우 스타일 초기화
+  document.querySelectorAll('.sl .sinp-w.on').forEach(w => {
+    w.classList.remove('on'); w.style.left = ''; w.style.right = '';
   });
+  // 드래그 생성 임시 wrap(동적) 제거
+  document.querySelectorAll('.sinp-w[data-dynamic="1"]').forEach(w => w.remove());
 }
 function snap10(n) { return Math.max(10, Math.round(n / 10) * 10); }
 
@@ -3754,8 +3764,44 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     switchView('day');
     showToast('📆 일간 보기');
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    navigatePrev();
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    navigateNext();
   }
 });
+
+// 이전(왼쪽 화살표): 일간이면 전날, 주간이면 이전 주
+function navigatePrev() {
+  if (viewMode === 'day') {
+    if (dayView === 0) {
+      // 월요일에서 왼쪽 → 이전 주 일요일
+      document.getElementById('weekPrev').click();
+      setTimeout(() => setDayView(6), 50);
+    } else {
+      setDayView(dayView - 1);
+    }
+  } else {
+    document.getElementById('weekPrev').click();
+  }
+}
+
+// 다음(오른쪽 화살표): 일간이면 다음날, 주간이면 다음 주
+function navigateNext() {
+  if (viewMode === 'day') {
+    if (dayView === 6) {
+      // 일요일에서 오른쪽 → 다음 주 월요일
+      document.getElementById('weekNext').click();
+      setTimeout(() => setDayView(0), 50);
+    } else {
+      setDayView(dayView + 1);
+    }
+  } else {
+    document.getElementById('weekNext').click();
+  }
+}
 
 // 검색 버튼 → 날짜 입력 prompt
 document.getElementById('btnSearch').addEventListener('click', () => {
