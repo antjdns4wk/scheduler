@@ -1474,8 +1474,16 @@ function rebuildGridSize() {
   // update time axis label heights
   document.querySelectorAll('.tlbl').forEach(lbl => { lbl.style.height = (PX * 6) + 'px'; });
   // re-sync scroll spacer
-  const hh = document.getElementById('dhdrs').getBoundingClientRect().height;
-  const sp = document.getElementById('axSp'); if (sp) sp.style.height = hh + 'px';
+  syncAxisSpacer();
+}
+
+// 시간축 상단 여백 = 요일 헤더 + (보이면)트랙 라벨 높이
+function syncAxisSpacer() {
+  const sp = document.getElementById('axSp'); if (!sp) return;
+  let h = document.getElementById('dhdrs').getBoundingClientRect().height;
+  const tl = document.getElementById('dayTrackLabels');
+  if (tl && tl.classList.contains('show')) h += tl.getBoundingClientRect().height;
+  sp.style.height = h + 'px';
 }
 
 const S_HR    = 5;
@@ -2641,8 +2649,7 @@ function syncScroll() {
   const gs = document.getElementById('gscroll');
   const ti = document.getElementById('taxisInner');
   requestAnimationFrame(() => {
-    const hh = document.getElementById('dhdrs').getBoundingClientRect().height;
-    document.getElementById('axSp').style.height = hh + 'px';
+    syncAxisSpacer();
     // 현재 시각 기준으로 스크롤 (현재 시각 - 1시간 위치)
     const now = new Date();
     const curH = now.getHours();
@@ -2678,6 +2685,7 @@ function switchView(mode) {
     document.querySelectorAll('.dhdr').forEach(c => c.style.display = '');
     document.getElementById('dayTrackLabels').classList.remove('show');
     document.getElementById('memoPanel').classList.remove('show');
+    requestAnimationFrame(syncAxisSpacer);
   } else {
     gcols.classList.add('day-view');
     dhdrs.classList.add('day-view');
@@ -2909,6 +2917,7 @@ function setDayView(di) {
   });
   // 트랙 라벨 표시
   document.getElementById('dayTrackLabels').classList.add('show');
+  requestAnimationFrame(syncAxisSpacer);
   // update nav label
   const lbl = document.getElementById('dayNavLabel');
   lbl.textContent = DAYS_EN[di] + '  ' + DAYS_KO[di].replace('요일','');
