@@ -323,6 +323,8 @@
   .blk-dur { display: none; }
 
   /* 완료된 블록 */
+  .blk.compact { padding: 2px 6px 2px 12px; }
+  .blk.compact .blk-lbl { font-size: 10px; }
   .blk.done { opacity: .6; }
   .blk.done .blk-lbl { text-decoration: line-through; color: var(--text-sub); }
   /* 완료 체크 시 펄스 */
@@ -1714,22 +1716,22 @@ function attachDragCreate(col, di) {
       // 트랙 판단
       const isDual = col.classList.contains('dual-track');
       const clickTrack = isDual ? ((e.clientX - rect.left) > rect.width / 2 ? 1 : 0) : 0;
-      // 클릭한 위치(분 범위)에 같은 트랙 블록이 있으면 입력창 열지 않음
-      const clickStartM = si30 * 30;
-      const clickEndM   = clickStartM + 30;
-      const occupied = blocks.some(bk => {
+      // 클릭한 정확한 10분 지점에 블록이 있는지만 검사 (슬롯 전체가 아님)
+      const clickFineM = Math.floor(clickY / PX) * MIN_UNIT;  // 클릭 지점(분)
+      const pointOccupied = blocks.some(bk => {
         if (bk.col !== di) return false;
         if ((bk.track || 0) !== clickTrack) return false;
         const bS = Math.round(bk.si) * MIN_UNIT;
         const bE = bS + bk.mins;
-        return clickStartM < bE && clickEndM > bS;
+        return clickFineM >= bS && clickFineM < bE;  // 클릭 지점이 블록 안에 있나
       });
-      if (occupied) return;
+      if (pointOccupied) return;
+      const clickFineSi = Math.floor(clickY / PX);  // 클릭한 정확한 10분 인덱스
       const sl = col.querySelector(`.sl[data-si="${si30}"]`);
       if (sl) {
         const w = sl.querySelector('.sinp-w');
         const inp = sl.querySelector('.sinp');
-        if (w && inp) openInp(w, inp, di, si30, clickTrack);
+        if (w && inp) openInp(w, inp, di, si30, clickTrack, clickFineSi);
       }
     }
   });
@@ -1801,13 +1803,16 @@ function createBlockAt(colIdx, di, fineSi, label, mins, track) {
 }
 
 /* ── Input ──────────────────────────────────── */
-let pendingTrack = 0;  // 입력창에서 생성될 블록의 트랙
-function openInp(w, inp, di, si, track) {
+let pendingTrack = 0;     // 입력창에서 생성될 블록의 트랙
+let pendingFineSi = null; // 클릭한 정확한 10분 위치 (null이면 슬롯*3)
+function openInp(w, inp, di, si, track, fineSi) {
   closeInp(); w.classList.add('on'); activeWrap = w;
   pendingTrack = track || 0;
+  pendingFineSi = (fineSi !== undefined) ? fineSi : null;
   inp.value = ''; requestAnimationFrame(() => inp.focus());
 }
 function closeInp() {
+  pendingFineSi = null;
   if (activeWrap) {
     // 동적 생성된 wrap (드래그 생성 입력창)은 DOM에서 제거
     if (!activeWrap.classList.contains('sinp-w') || !activeWrap.parentElement) {
@@ -1835,9 +1840,8 @@ function handleInp(raw, col, si) {
   const id    = genId();
   const tk    = pendingTrack || 0;
 
-  // 클릭한 슬롯을 분으로 변환 (30분 단위 그리드)
-  // 클릭한 30분 슬롯 → 10분 단위 fine si로 변환
-  const fineSi = Math.round(si) * 3;  // 30min slot → 10min fine index
+  // 클릭한 위치 → 10분 단위 fine si (정확한 지점 우선)
+  const fineSi = (pendingFineSi !== null) ? pendingFineSi : Math.round(si) * 3;
   const tempB = { id, label, mins, slots, col, si: fineSi, track: tk };
   const resolvedSi = resolveSlot(tempB, col, fineSi);
   if (resolvedSi === null) {
@@ -1859,7 +1863,10 @@ function renderBlock(b, animate) {
   el.className = 'blk track-' + track + (b.done ? ' done' : '') + (animate ? ' spawn' : ''); el.id = 'b' + b.id;
   el.style.top    = (Math.round(b.si) * PX) + 'px';  // si = 10분 단위
   const exactH = (b.mins / MIN_UNIT) * PX - 1;       // 30분=30px, 블록 간 갭 최소화
-  el.style.height = Math.max(exactH, 4) + 'px';
+  const finalH = Math.max(exactH, 4);
+  el.style.height = finalH + 'px';
+  // 30px 미만(20분 이하)이면 compact 모드 (라벨 작게)
+  if (finalH < 32) el.classList.add('compact');
   // 카드형: 연한 배경 + 진한 컬러바/텍스트
   const accent = pal(b.label);
   el.style.background = palBg(b.label);
