@@ -51,6 +51,13 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
+  /* 드래그/리사이즈 중 전체 텍스트 선택 방지 */
+  body.dragging, body.dragging * {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -webkit-touch-callout: none !important;
+  }
+
   body {
     font-family: 'Noto Sans KR', sans-serif;
     background: var(--bg);
@@ -268,7 +275,7 @@
   /* ── Block ───────────────────────────────────── */
   .blk {
     position: absolute; left: 3px; right: 3px; border-radius: 8px;
-    cursor: grab; user-select: none; z-index: 20; overflow: hidden;
+    cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; z-index: 20; overflow: hidden;
     display: flex; flex-direction: column; padding: 4px 8px 4px 12px;
     box-shadow: var(--shadow-sm); min-height: 4px;
     border: 1px solid rgba(15,23,42,.04);
@@ -1975,6 +1982,7 @@ function renderBlock(b, animate) {
       block: b,
     };
     el.classList.add('resizing');
+    document.body.classList.add('dragging');
     gs.style.overflowY = 'hidden';
     resize.setPointerCapture(e.pointerId);
   });
@@ -1994,6 +2002,8 @@ function renderBlock(b, animate) {
       startX: e.clientX, startY: e.clientY, moved: false,
     };
     el.classList.add('dg');
+    document.body.classList.add('dragging');
+    if (window.getSelection) { const s = window.getSelection(); if (s) s.removeAllRanges(); }
     document.getElementById('gscroll').style.overflowY = 'hidden';
 
     // 길게 누르기(500ms) → 이름 수정 (모바일 대응)
@@ -2001,6 +2011,7 @@ function renderBlock(b, animate) {
       if (drag && !drag.moved) {
         // 드래그 취소하고 이름 수정 모드
         el.classList.remove('dg');
+        document.body.classList.remove('dragging');
         document.getElementById('gscroll').style.overflowY = 'auto';
         drag = null;
         if (navigator.vibrate) navigator.vibrate(20);
@@ -2095,6 +2106,7 @@ document.addEventListener('pointermove', e => {
 
 function finishResize() {
   if (!resizing) return;
+  document.body.classList.remove('dragging');
   const r = resizing;
   resizing = null;
   r.el.classList.remove('resizing');
@@ -2300,6 +2312,7 @@ function finishDrag() {
   if (!drag) return;
   stopEdgeScroll();
   clearShift();
+  document.body.classList.remove('dragging');
   const b = blocks.find(x => x.id === drag.id);
   if (b) {
     const col  = (drag.nc !== undefined) ? drag.nc : b.col;
