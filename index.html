@@ -332,6 +332,9 @@
   /* 완료된 블록 */
   .blk.compact { padding: 2px 6px 2px 12px; }
   .blk.compact .blk-lbl { font-size: 10px; }
+  /* 작은 블록: 평소엔 리사이즈 핸들 숨겨 이동 드래그 우선, active(탭)일 때만 표시 */
+  .blk.compact .blk-resize { height: 5px; }
+  .blk.compact:not(.active):not(:hover) .blk-resize { display: none; }
   .blk.done { opacity: .6; }
   .blk.done .blk-lbl { text-decoration: line-through; color: var(--text-sub); }
   /* 완료 체크 시 펄스 */
@@ -403,7 +406,13 @@
   }
   .blk:hover .blk-resize, .blk.active .blk-resize { display: block; }
   .blk.resizing { transition: none; z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
-  .blk.active { z-index: 100; box-shadow: 0 0 0 2px rgba(255,255,255,.8), 0 4px 14px rgba(0,0,0,.3); }
+  .blk.active {
+    z-index: 100;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.8), 0 4px 14px rgba(0,0,0,.3);
+    min-height: 40px !important;  /* 작은 블록도 탭하면 버튼 누를 수 있게 확장 */
+  }
+  /* 확장된 active 블록은 라벨 잘림 방지 */
+  .blk.active.compact .blk-lbl { font-size: 11px; }
   .blk.resizing .blk-resize::after { opacity: 1; }
 
   /* 이름 수정 입력창 */
@@ -1176,6 +1185,8 @@
     .blk-check { width: 22px; height: 22px; font-size: 13px; left: 4px; }
     .blk-del   { width: 22px; height: 22px; font-size: 14px; right: 4px; }
     .blk.active .blk-lbl { padding-left: 26px; padding-right: 26px; }
+    /* 모바일: active(탭)된 작은 블록도 리사이즈 핸들 표시 */
+    .blk.compact.active .blk-resize { display: block; height: 14px; }
     .blk-resize { height: 14px; }
     .blk-resize::after { width: 32px; height: 4px; bottom: 4px; }
 
