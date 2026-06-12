@@ -842,6 +842,7 @@
     display: flex; flex-direction: column;
     transition: border-color .12s, box-shadow .12s;
     overflow: hidden;
+    flex-shrink: 0;  /* 여러 메모 시 눌리지 않고 스크롤 */
   }
   .memo-block:focus-within {
     border-color: #1D4ED8;
@@ -868,11 +869,18 @@
     flex-shrink: 0; transition: background .1s;
   }
   .memo-block-del:hover { background: #FEE2E2; color: var(--sun); }
+  .memo-block-act {
+    width: 22px; height: 22px; border-radius: 6px; border: none;
+    background: none; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 13px; color: var(--text-hint);
+    flex-shrink: 0; transition: background .1s;
+  }
+  .memo-block-act:hover { background: var(--surface-muted); color: var(--accent); }
   .memo-block-body {
-    padding: 8px 10px; min-height: 60px;
+    padding: 8px 10px; min-height: 50px;
     font-size: 13px; line-height: 1.7; color: var(--text);
     font-family: 'Noto Sans KR', sans-serif;
-    border: none; outline: none; resize: none; width: 100%;
+    border: none; outline: none; resize: vertical; width: 100%;
     background: transparent;
   }
   .memo-block-body::placeholder { color: var(--text-hint); font-size: 12px; }
@@ -2799,6 +2807,8 @@ function createMemoBlockEl(data) {
     <div class="memo-block-header">
       <div class="memo-block-color" style="background:${color}" data-color-btn="${id}"></div>
       <input class="memo-block-title" type="text" placeholder="제목 (선택)" value="${(title||'').replace(/"/g,'&quot;')}">
+      <button class="memo-block-act" data-dup="${id}" title="복제">⎘</button>
+      <button class="memo-block-act" data-next="${id}" title="다음 날로 넘기기">→</button>
       <button class="memo-block-del" data-del="${id}" title="삭제">×</button>
     </div>
     <textarea class="memo-block-body" placeholder="메모 내용을 입력하세요...">${body||''}</textarea>
@@ -2883,6 +2893,34 @@ document.getElementById('memoScroll').addEventListener('click', e => {
     if (el) { el.remove(); persistMemo(); renderMemoEmpty(); }
     return;
   }
+  // 복제
+  const dupBtn = e.target.closest('[data-dup]');
+  if (dupBtn) {
+    const id = dupBtn.dataset.dup;
+    const el = document.querySelector(`.memo-block[data-mid="${id}"]`);
+    if (el) {
+      const newData = {
+        id: 'mb_' + Date.now() + '_' + Math.floor(Math.random()*1000),
+        color: el.dataset.color,
+        title: el.querySelector('.memo-block-title').value,
+        body:  el.querySelector('.memo-block-body').value,
+        ts: new Date().toISOString(),
+      };
+      const newEl = createMemoBlockEl(newData);
+      el.after(newEl);
+      persistMemo();
+      showToast('📋 메모를 복제했어요');
+    }
+    return;
+  }
+  // 다음 날로 넘기기
+  const nextBtn = e.target.closest('[data-next]');
+  if (nextBtn) {
+    const id = nextBtn.dataset.next;
+    const el = document.querySelector(`.memo-block[data-mid="${id}"]`);
+    if (el) moveMemoToNextDay(el);
+    return;
+  }
   // color button
   const colorBtn = e.target.closest('[data-color-btn]');
   if (colorBtn) {
@@ -2890,6 +2928,47 @@ document.getElementById('memoScroll').addEventListener('click', e => {
     return;
   }
 });
+
+// 메모를 다음 날로 이동
+async function moveMemoToNextDay(el) {
+  const memoData = {
+    id: el.dataset.mid,
+    color: el.dataset.color,
+    title: el.querySelector('.memo-block-title').value,
+    body:  el.querySelector('.memo-block-body').value,
+    ts: el.dataset.ts,
+  };
+  const curDay = memoDay;
+  const nextDay = (curDay + 1) % 7;
+  const crossWeek = (curDay === 6);  // 일요일 → 다음 주 월요일
+
+  // 현재 화면에서 제거 + 저장
+  el.remove();
+  persistMemo();
+  renderMemoEmpty();
+
+  if (crossWeek) {
+    // 다음 주 월요일로: weekOffset+1의 day 0에 저장
+    const nextWk = getWeekKey(weekOffset + 1);
+    let arr = [];
+    if (db) {
+      try { const s = await db.ref(fbMemoPath(nextWk, 0)).once('value'); if (s.exists()) arr = s.val()||[]; } catch(e){}
+    } else {
+      try { arr = JSON.parse(localStorage.getItem(`memo_blocks_${nextWk}_d0`)||'[]'); } catch(e){}
+    }
+    arr.push(memoData);
+    if (db) db.ref(fbMemoPath(nextWk, 0)).set(arr).catch(()=>{});
+    try { localStorage.setItem(`memo_blocks_${nextWk}_d0`, JSON.stringify(arr)); } catch(e){}
+    showToast('➡️ 다음 주 월요일로 넘겼어요');
+  } else {
+    // 같은 주 다음 날
+    const arr = await loadMemoBlocks(nextDay);
+    arr.push(memoData);
+    saveMemoBlocks(nextDay, arr);
+    const DAYS_KR = ['월','화','수','목','금','토','일'];
+    showToast(`➡️ ${DAYS_KR[nextDay]}요일로 넘겼어요`);
+  }
+}
 
 function openColorPicker(dotEl) {
   closeColorPicker();
