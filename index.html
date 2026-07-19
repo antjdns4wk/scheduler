@@ -5,44 +5,49 @@
   <!-- Firebase SDK: 동적 로드 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>시간 블록 스케줄러</title>
-<meta name="theme-color" content="#2563EB">
+<meta name="theme-color" content="#E08A38">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="TimeBlock">
-<link rel="manifest" href='data:application/manifest+json,{"name":"Time Block Scheduler","short_name":"TimeBlock","start_url":".","display":"standalone","background_color":"%23F8FAFC","theme_color":"%232563EB"}'>
+<link rel="manifest" href='data:application/manifest+json,{"name":"Time Block Scheduler","short_name":"TimeBlock","start_url":".","display":"standalone","background_color":"%23F3F5F9","theme_color":"%23E08A38"}'>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&display=swap');
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
 
   :root {
-    --bg:           #F8FAFC;
+    --font: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+
+    /* ── 새벽 운영 콘솔 팔레트 ── */
+    --bg:           #F3F5F9;
     --surface:      #FFFFFF;
-    --surface-muted:#F1F5F9;
-    --border:       #E5E9F0;
-    --border-hr:    #D4DAE4;
-    --text:         #1E2330;
-    --text-sub:     #64748B;
-    --text-hint:    #94A3B8;
-    --today:        #2563EB;
-    --today-bg:     #EFF5FF;
-    --sat:          #3B6FD4;
-    --sun:          #D45F5F;
-    --accent:       #2563EB;
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 14px;
-    --shadow-sm: 0 1px 2px rgba(15,23,42,.06);
-    --shadow-md: 0 2px 8px rgba(15,23,42,.08);
+    --surface-muted:#EEF1F6;
+    --border:       #E4E8EF;
+    --border-hr:    #D6DCE6;
+    --text:         #1A1E26;
+    --text-sub:     #5C6470;
+    --text-hint:    #9AA2AE;
+    --today:        #E08A38;   /* 일출 앰버 */
+    --today-bg:     #FCF3E7;
+    --sat:          #4A72C4;
+    --sun:          #CF5D5D;
+    --accent:       #E08A38;
+    --accent-deep:  #C9762C;
+    --accent-bg:    #FCF3E7;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --shadow-sm: 0 1px 2px rgba(20,24,32,.05), 0 1px 1px rgba(20,24,32,.03);
+    --shadow-md: 0 4px 16px rgba(20,24,32,.08), 0 1px 3px rgba(20,24,32,.05);
 
     /* v2 카테고리 색상 — '지속 가능한 하루' 타임블록과 연동 */
-    --cat-body:     #3E7C59;  /* 몸 */
-    --cat-work:     #3B5BA5;  /* 실무 */
-    --cat-strat:    #7A4FA0;  /* 전략 */
-    --cat-rest:     #8A8F98;  /* 회복 */
-    --cat-close:    #B97E2E;  /* 닫기 */
-    --cat-move:     #6B7280;  /* 이동 */
-    --cat-free:     #5E8FA3;  /* 자유 */
-    --cat-etc:      #7A828E;
+    --cat-body:     #2E9E6B;  /* 몸 */
+    --cat-work:     #4A6FDC;  /* 실무 */
+    --cat-strat:    #8A5CE6;  /* 전략 */
+    --cat-rest:     #5F7D99;  /* 회복 */
+    --cat-close:    #C9762C;  /* 닫기 */
+    --cat-move:     #7A8694;  /* 이동 */
+    --cat-free:     #2C9FB0;  /* 자유 */
+    --cat-etc:      #8A93A0;
 
     /* 카테고리 연한 배경 (블록용) */
     --cat-work-bg:     #FBEAEA;
@@ -66,9 +71,12 @@
   }
 
   body {
-    font-family: 'Noto Sans KR', sans-serif;
-    background: var(--bg);
+    font-family: var(--font);
+    background:
+      radial-gradient(1200px 400px at 50% -80px, rgba(224,138,56,.05), transparent 60%),
+      linear-gradient(180deg, #F5F6FA 0%, var(--bg) 240px);
     color: var(--text);
+    -webkit-font-smoothing: antialiased;
     height: 100vh;
     overflow: hidden;
     display: flex;
@@ -135,7 +143,7 @@
     height: 34px; padding: 0 14px; border-radius: 9px;
     border: 1px solid var(--border); background: var(--surface);
     font-size: 12px; font-weight: 600; color: var(--text-sub); cursor: pointer;
-    font-family: 'Noto Sans KR', sans-serif; white-space: nowrap;
+    font-family: var(--font); white-space: nowrap;
     transition: all .12s;
   }
   .btn-today:hover { border-color: var(--accent); color: var(--accent); }
@@ -180,7 +188,7 @@
     display: flex; align-items: center; gap: 10px;
     padding: 9px 12px; border-radius: 8px; cursor: pointer;
     font-size: 13px; color: var(--text); background: none; border: none;
-    width: 100%; text-align: left; font-family: 'Noto Sans KR', sans-serif;
+    width: 100%; text-align: left; font-family: var(--font);
     transition: background .1s;
   }
   .more-item:hover { background: var(--surface-muted); }
@@ -277,15 +285,15 @@
 
   .sinp-w { position: absolute; inset: 2px; z-index: 50; display: none; }
   .sinp-w.on { display: flex; }
-  .sinp { width: 100%; height: 100%; border: 2px solid var(--today); border-radius: 5px; background: #fff; font-size: 12px; font-family: 'Noto Sans KR', sans-serif; padding: 0 6px; color: var(--text); outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+  .sinp { width: 100%; height: 100%; border: 2px solid var(--today); border-radius: 5px; background: #fff; font-size: 12px; font-family: var(--font); padding: 0 6px; color: var(--text); outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
 
   /* ── Block ───────────────────────────────────── */
   .blk {
-    position: absolute; left: 3px; right: 3px; border-radius: 8px;
+    position: absolute; left: 3px; right: 3px; border-radius: 10px;
     cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; z-index: 20; overflow: hidden;
     display: flex; flex-direction: column; padding: 4px 8px 4px 12px;
     box-shadow: var(--shadow-sm); min-height: 4px;
-    border: 1px solid rgba(15,23,42,.04);
+    border: 1px solid rgba(20,24,32,.05);
     /* 좌측 컬러 바는 box-shadow inset으로 */
     transition: box-shadow .15s ease,
                 top .42s cubic-bezier(.34,1.56,.64,1),
@@ -297,7 +305,7 @@
   /* 좌측 4px 컬러 바 */
   .blk::before {
     content: ''; position: absolute; left: 0; top: 0; bottom: 0;
-    width: 4px; border-radius: 8px 0 0 8px;
+    width: 4px; border-radius: 10px 0 0 10px;
     background: var(--blk-accent, #888);
     z-index: 2;
   }
@@ -429,7 +437,7 @@
     background: rgba(255,255,255,.95); border: none; border-radius: 4px;
     padding: 2px 6px; font-size: 11px; font-weight: 600;
     color: #1A1D27; outline: none; z-index: 60;
-    font-family: 'Noto Sans KR', sans-serif;
+    font-family: var(--font);
   }
 
   /* ── Zoom controls ──────────────────────────────*/
@@ -490,7 +498,7 @@
     height: 28px; padding: 0 8px;
     border: 1px solid var(--border); border-right: none;
     border-radius: 7px 0 0 7px;
-    font-size: 11px; font-family: 'Noto Sans KR', sans-serif;
+    font-size: 11px; font-family: var(--font);
     color: var(--text); background: var(--surface); outline: none;
     width: 120px; transition: border-color .12s;
   }
@@ -514,7 +522,7 @@
     display: flex; align-items: center; gap: 5px;
     padding: 5px 12px; border-radius: 7px; border: 1px solid var(--border);
     font-size: 11px; font-weight: 600; cursor: pointer;
-    font-family: 'Noto Sans KR', sans-serif;
+    font-family: var(--font);
     transition: background .1s, border-color .1s;
     white-space: nowrap;
   }
@@ -639,7 +647,7 @@
   .arc-item-load {
     padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border);
     background: var(--bg); font-size: 11px; font-weight: 600;
-    color: var(--text-sub); cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+    color: var(--text-sub); cursor: pointer; font-family: var(--font);
     white-space: nowrap;
   }
   .arc-item-load:hover { background: var(--border); }
@@ -686,7 +694,7 @@
     background: #fff; color: #1A1D27;
     border: none; border-radius: 10px;
     padding: 12px 24px; font-size: 14px; font-weight: 600;
-    cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer; font-family: var(--font);
     width: 100%; justify-content: center;
     transition: opacity .15s;
     box-shadow: 0 4px 14px rgba(0,0,0,.2);
@@ -708,7 +716,7 @@
     font-size: 11px; color: var(--text-hint);
     background: none; border: 1px solid var(--border);
     border-radius: 6px; padding: 3px 8px; cursor: pointer;
-    font-family: 'Noto Sans KR', sans-serif;
+    font-family: var(--font);
   }
   .logout-btn:hover { color: var(--sun); border-color: #FECACA; }
 
@@ -721,7 +729,7 @@
   .view-btn {
     padding: 5px 14px; font-size: 11px; font-weight: 600;
     border: none; background: var(--bg); color: var(--text-sub);
-    cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer; font-family: var(--font);
     transition: background .12s, color .12s;
     white-space: nowrap;
   }
@@ -820,7 +828,7 @@
     height: 26px; padding: 0 10px; border-radius: 6px;
     border: 1px solid var(--border); background: var(--bg);
     font-size: 11px; font-weight: 600; cursor: pointer;
-    font-family: 'Noto Sans KR', sans-serif; color: var(--text-sub);
+    font-family: var(--font); color: var(--text-sub);
     display: flex; align-items: center; gap: 4px;
     transition: background .1s;
   }
@@ -829,7 +837,7 @@
     height: 26px; padding: 0 10px; border-radius: 6px;
     border: 1px solid var(--border); background: none;
     font-size: 11px; font-weight: 600; cursor: pointer;
-    font-family: 'Noto Sans KR', sans-serif; color: var(--text-hint);
+    font-family: var(--font); color: var(--text-hint);
     transition: background .1s;
   }
   .memo-clear-btn:hover { background: #FEE2E2; color: var(--sun); border-color: #FECACA; }
@@ -865,7 +873,7 @@
   }
   .memo-block-title {
     flex: 1; border: none; outline: none; font-size: 12px; font-weight: 600;
-    font-family: 'Noto Sans KR', sans-serif; color: var(--text);
+    font-family: var(--font); color: var(--text);
     background: transparent; min-width: 0;
   }
   .memo-block-title::placeholder { color: var(--text-hint); }
@@ -886,7 +894,7 @@
   .memo-block-body {
     padding: 8px 10px; min-height: 50px;
     font-size: 13px; line-height: 1.7; color: var(--text);
-    font-family: 'Noto Sans KR', sans-serif;
+    font-family: var(--font);
     border: none; outline: none; resize: vertical; width: 100%;
     background: transparent;
   }
@@ -958,7 +966,7 @@
   }
   .tpl-name-input {
     flex: 1; height: 32px; border: 1.5px solid var(--border); border-radius: 7px;
-    padding: 0 10px; font-size: 12px; font-family: 'Noto Sans KR', sans-serif;
+    padding: 0 10px; font-size: 12px; font-family: var(--font);
     color: var(--text); background: var(--surface); outline: none;
   }
   .tpl-name-input:focus { border-color: #1D4ED8; box-shadow: 0 0 0 2px rgba(29,78,216,.12); }
@@ -966,7 +974,7 @@
     height: 32px; padding: 0 14px; border-radius: 7px;
     border: none; background: #1D4ED8; color: #fff;
     font-size: 11px; font-weight: 600; cursor: pointer;
-    font-family: 'Noto Sans KR', sans-serif; white-space: nowrap;
+    font-family: var(--font); white-space: nowrap;
   }
   .tpl-save-btn:hover { background: #1E40AF; }
 
@@ -993,7 +1001,7 @@
   .tpl-item-name-input {
     font-size: 13px; font-weight: 600; color: var(--text);
     border: 1.5px solid #1D4ED8; border-radius: 5px;
-    padding: 1px 6px; font-family: 'Noto Sans KR', sans-serif;
+    padding: 1px 6px; font-family: var(--font);
     outline: none; background: var(--surface); width: 180px;
   }
   .tpl-item-meta { font-size: 11px; color: var(--text-hint); margin-top: 2px; }
@@ -1007,7 +1015,7 @@
     height: 28px; padding: 0 10px; border-radius: 6px;
     border: 1px solid var(--border); background: var(--bg);
     font-size: 11px; font-weight: 600; cursor: pointer;
-    font-family: 'Noto Sans KR', sans-serif; white-space: nowrap;
+    font-family: var(--font); white-space: nowrap;
     color: var(--text-sub); transition: background .1s;
   }
   .tpl-btn:hover { background: var(--border); }
@@ -1024,7 +1032,7 @@
   .tpl-mode-btn {
     flex: 1; padding: 4px 0; font-size: 10px; font-weight: 600;
     border: none; background: var(--bg); color: var(--text-hint);
-    cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer; font-family: var(--font);
     transition: background .1s;
   }
   .tpl-mode-btn.sel { background: #1D4ED8; color: #fff; }
@@ -1267,7 +1275,7 @@
   .toast-undo {
     margin-left: 10px; background: none; border: none; color: #7CB8FF;
     font-size: 12px; font-weight: 700; cursor: pointer;
-    font-family: 'Noto Sans KR', sans-serif;
+    font-family: var(--font);
   }
   .toast-undo:hover { text-decoration: underline; }
 
@@ -1277,7 +1285,7 @@
     height: 28px; padding: 0 12px; border-radius: 20px;
     border: 1px solid var(--border); background: var(--surface-muted);
     font-size: 11px; font-weight: 700; color: var(--text-sub); cursor: pointer;
-    font-family: 'Noto Sans KR', sans-serif; white-space: nowrap;
+    font-family: var(--font); white-space: nowrap;
     transition: all .12s; font-variant-numeric: tabular-nums;
   }
   .timer-chip:hover { border-color: var(--accent); color: var(--accent); }
@@ -1295,14 +1303,14 @@
   }
   .timer-pop input {
     flex: 1; height: 30px; border: 1.5px solid var(--border); border-radius: 7px;
-    padding: 0 8px; font-size: 12px; font-family: 'Noto Sans KR', sans-serif;
+    padding: 0 8px; font-size: 12px; font-family: var(--font);
     outline: none; color: var(--text); background: var(--surface); min-width: 0;
   }
   .timer-pop input:focus { border-color: var(--accent); }
   .timer-pop button {
     height: 30px; padding: 0 12px; border: none; border-radius: 7px;
     background: var(--accent); color: #fff; font-size: 11px; font-weight: 700;
-    cursor: pointer; font-family: 'Noto Sans KR', sans-serif; flex-shrink: 0;
+    cursor: pointer; font-family: var(--font); flex-shrink: 0;
   }
 
   /* 블록 hover 버튼: ▶ 타이머 / ↻ 반복 */
@@ -1350,7 +1358,7 @@
   .set-row label { flex: 1; }
   .set-row select {
     height: 30px; border: 1px solid var(--border); border-radius: 7px;
-    font-size: 12px; font-family: 'Noto Sans KR', sans-serif;
+    font-size: 12px; font-family: var(--font);
     background: var(--surface); color: var(--text); padding: 0 6px; outline: none;
   }
   .set-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
@@ -1361,7 +1369,7 @@
   }
   .cat-edit-row input[type=text] {
     flex: 1; height: 30px; border: 1px solid var(--border); border-radius: 7px;
-    padding: 0 8px; font-size: 12px; font-family: 'Noto Sans KR', sans-serif;
+    padding: 0 8px; font-size: 12px; font-family: var(--font);
     outline: none; color: var(--text); background: var(--surface); min-width: 0;
   }
   .cat-edit-row input[type=text]:focus { border-color: var(--accent); }
@@ -1374,7 +1382,7 @@
     height: 30px; padding: 0 12px; border-radius: 7px;
     border: 1px solid var(--border); background: var(--bg);
     font-size: 11px; font-weight: 600; cursor: pointer;
-    font-family: 'Noto Sans KR', sans-serif; color: var(--text-sub);
+    font-family: var(--font); color: var(--text-sub);
     transition: background .1s;
   }
   .set-btn:hover { background: var(--border); }
@@ -1385,7 +1393,7 @@
   .srch-input-row { display: flex; gap: 8px; margin-bottom: 12px; }
   .srch-input {
     flex: 1; height: 34px; border: 1.5px solid var(--border); border-radius: 8px;
-    padding: 0 10px; font-size: 13px; font-family: 'Noto Sans KR', sans-serif;
+    padding: 0 10px; font-size: 13px; font-family: var(--font);
     outline: none; color: var(--text); background: var(--surface); min-width: 0;
   }
   .srch-input:focus { border-color: var(--accent); }
@@ -1405,6 +1413,27 @@
     .blk-play, .blk-rep { width: 22px; height: 22px; font-size: 12px; }
     .blk-play { right: 28px; }
     .blk-rep  { right: 53px; }
+  }
+  /* ── Modern polish ───────────────────────────── */
+  ::selection { background: rgba(224,138,56,.22); }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: none; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: #CBD2DC; border-radius: 8px;
+    border: 2px solid transparent; background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: #AEB7C4; border: 2px solid transparent; background-clip: padding-box; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
   }
 </style>
 </head>
@@ -1726,15 +1755,15 @@ const DAYS_KO = ['월요일','화요일','수요일','목요일','금요일','�
 // v2: '지속 가능한 하루' 타임블록 카테고리 체계와 연동
 // aliases: 라벨에 별칭이 포함돼도 같은 카테고리로 분류 (예: "헬스" → 몸)
 const DEFAULT_CATEGORIES = [
-  { key: '몸',   color: '#3E7C59', aliases: ['운동','러닝','헬스'] },
-  { key: '실무', color: '#3B5BA5', aliases: ['업무','딥워크','발주','소싱','CS','커뮤니케이션'] },
-  { key: '전략', color: '#7A4FA0', aliases: ['분석','리서치','기획','공부'] },
-  { key: '회복', color: '#8A8F98', aliases: ['휴식','식사','아침','점심','저녁','샤워','폼롤러','스트레칭','취침','수면'] },
-  { key: '닫기', color: '#B97E2E', aliases: ['마감','회고','내일의 3가지'] },
-  { key: '이동', color: '#6B7280', aliases: ['출근','퇴근'] },
-  { key: '자유', color: '#5E8FA3', aliases: ['버퍼','유연','학습'] },
+  { key: '몸',   color: '#2E9E6B', aliases: ['운동','러닝','헬스'] },
+  { key: '실무', color: '#4A6FDC', aliases: ['업무','딥워크','발주','소싱','CS','커뮤니케이션'] },
+  { key: '전략', color: '#8A5CE6', aliases: ['분석','리서치','기획','공부'] },
+  { key: '회복', color: '#5F7D99', aliases: ['휴식','식사','아침','점심','저녁','샤워','폼롤러','스트레칭','취침','수면'] },
+  { key: '닫기', color: '#C9762C', aliases: ['마감','회고','내일의 3가지'] },
+  { key: '이동', color: '#7A8694', aliases: ['출근','퇴근'] },
+  { key: '자유', color: '#2C9FB0', aliases: ['버퍼','유연','학습'] },
 ];
-const CAT_KEY = 'user_categories_v2';
+const CAT_KEY = 'user_categories_v3';
 let CATEGORIES = DEFAULT_CATEGORIES.map(c => ({...c}));
 try {
   const savedCats = JSON.parse(localStorage.getItem(CAT_KEY) || 'null');
@@ -1752,14 +1781,14 @@ function hexToBg(hex) {
 function saveCategories() {
   CATEGORIES.forEach(c => { if (!c.bg) c.bg = hexToBg(c.color); });
   try { localStorage.setItem(CAT_KEY, JSON.stringify(CATEGORIES)); } catch(e) {}
-  if (db && currentUser) db.ref(`users/${currentUser.uid}/categories_v2`).set(CATEGORIES).catch(()=>{});
+  if (db && currentUser) db.ref(`users/${currentUser.uid}/categories_v3`).set(CATEGORIES).catch(()=>{});
   renderCatChips();
 }
 function renderCatChips() {
   const wrap = document.getElementById('catChips');
   if (!wrap) return;
   wrap.innerHTML = CATEGORIES.map(c =>
-    `<span class="cat-chip"><span class="cat-chip-dot" style="background:${c.color}"></span>${c.key}</span>`
+    `<span class="cat-chip" style="background:${c.bg || hexToBg(c.color)};color:${c.color};border-color:transparent"><span class="cat-chip-dot" style="background:${c.color}"></span>${c.key}</span>`
   ).join('');
 }
 const FREE_COLOR    = '#E5E9F0';
@@ -3074,7 +3103,7 @@ function switchView(mode) {
 /* ════════════════════════════════════════════════
    MEMO BLOCK SYSTEM
    ════════════════════════════════════════════════ */
-const MEMO_COLORS = ['#6B7280','#DC2626','#EA580C','#16A34A','#2563EB','#DB2777','#7C3AED','#0891B2'];
+const MEMO_COLORS = ['#7A8694','#CF5D5D','#E08A38','#2E9E6B','#4A6FDC','#C75590','#8A5CE6','#2C9FB0'];
 
 function memoKey(dayIdx) {
   return `memo_blocks_${getWeekKey(weekOffset)}_d${dayIdx}`;
@@ -3569,7 +3598,7 @@ async function initFirebase() {
               try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
               if (settings.startHr !== S_HR || settings.endHr !== E_HR) applyRange(settings.startHr, settings.endHr);
             }
-            const cSnap = await db.ref(`users/${user.uid}/categories_v2`).once('value');
+            const cSnap = await db.ref(`users/${user.uid}/categories_v3`).once('value');
             if (cSnap.exists() && Array.isArray(cSnap.val()) && cSnap.val().length) {
               CATEGORIES = cSnap.val();
               try { localStorage.setItem(CAT_KEY, JSON.stringify(CATEGORIES)); } catch(e) {}
