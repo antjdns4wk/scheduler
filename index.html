@@ -34,13 +34,14 @@
     --shadow-sm: 0 1px 2px rgba(15,23,42,.06);
     --shadow-md: 0 2px 8px rgba(15,23,42,.08);
 
-    /* 저채도 카테고리 색상 (메인) */
-    --cat-work:     #D94F4F;
-    --cat-study:    #2F9E77;
-    --cat-exercise: #3A9E64;
-    --cat-meal:     #E8955A;
-    --cat-rest:     #D76596;
-    --cat-sleep:    #7E6AD8;
+    /* v2 카테고리 색상 — '지속 가능한 하루' 타임블록과 연동 */
+    --cat-body:     #3E7C59;  /* 몸 */
+    --cat-work:     #3B5BA5;  /* 실무 */
+    --cat-strat:    #7A4FA0;  /* 전략 */
+    --cat-rest:     #8A8F98;  /* 회복 */
+    --cat-close:    #B97E2E;  /* 닫기 */
+    --cat-move:     #6B7280;  /* 이동 */
+    --cat-free:     #5E8FA3;  /* 자유 */
     --cat-etc:      #7A828E;
 
     /* 카테고리 연한 배경 (블록용) */
@@ -1722,15 +1723,18 @@ const DAYS_KO = ['월요일','화요일','수요일','목요일','금요일','�
 
 // 카테고리: 키워드 → 색상
 // 라벨에 키워드가 포함되면 해당 카테고리로 분류
+// v2: '지속 가능한 하루' 타임블록 카테고리 체계와 연동
+// aliases: 라벨에 별칭이 포함돼도 같은 카테고리로 분류 (예: "헬스" → 몸)
 const DEFAULT_CATEGORIES = [
-  { key: '업무', color: '#D94F4F', bg: '#FBEAEA' },
-  { key: '공부', color: '#2F9E77', bg: '#E6F4EE' },
-  { key: '운동', color: '#3A9E64', bg: '#E7F3EC' },
-  { key: '식사', color: '#E8955A', bg: '#FCF0E6' },
-  { key: '휴식', color: '#D76596', bg: '#FAEAF1' },
-  { key: '취침', color: '#7E6AD8', bg: '#EFEBFA' },
+  { key: '몸',   color: '#3E7C59', aliases: ['운동','러닝','헬스'] },
+  { key: '실무', color: '#3B5BA5', aliases: ['업무','딥워크','발주','소싱','CS','커뮤니케이션'] },
+  { key: '전략', color: '#7A4FA0', aliases: ['분석','리서치','기획','공부'] },
+  { key: '회복', color: '#8A8F98', aliases: ['휴식','식사','아침','점심','저녁','샤워','폼롤러','스트레칭','취침','수면'] },
+  { key: '닫기', color: '#B97E2E', aliases: ['마감','회고','내일의 3가지'] },
+  { key: '이동', color: '#6B7280', aliases: ['출근','퇴근'] },
+  { key: '자유', color: '#5E8FA3', aliases: ['버퍼','유연','학습'] },
 ];
-const CAT_KEY = 'user_categories_v1';
+const CAT_KEY = 'user_categories_v2';
 let CATEGORIES = DEFAULT_CATEGORIES.map(c => ({...c}));
 try {
   const savedCats = JSON.parse(localStorage.getItem(CAT_KEY) || 'null');
@@ -1748,7 +1752,7 @@ function hexToBg(hex) {
 function saveCategories() {
   CATEGORIES.forEach(c => { if (!c.bg) c.bg = hexToBg(c.color); });
   try { localStorage.setItem(CAT_KEY, JSON.stringify(CATEGORIES)); } catch(e) {}
-  if (db && currentUser) db.ref(`users/${currentUser.uid}/categories`).set(CATEGORIES).catch(()=>{});
+  if (db && currentUser) db.ref(`users/${currentUser.uid}/categories_v2`).set(CATEGORIES).catch(()=>{});
   renderCatChips();
 }
 function renderCatChips() {
@@ -1760,9 +1764,13 @@ function renderCatChips() {
 }
 const FREE_COLOR    = '#E5E9F0';
 
-// 라벨에서 카테고리 키 반환 ("업무 딥워크 60" → "업무")
+// 라벨에서 카테고리 키 반환 ("헬스 60" → "몸")
+// 키 직접 매칭 우선, 그다음 별칭 매칭
 function catOf(lbl) {
   for (const cat of CATEGORIES) if (lbl.includes(cat.key)) return cat.key;
+  for (const cat of CATEGORIES) {
+    if (Array.isArray(cat.aliases) && cat.aliases.some(a => a && lbl.includes(a))) return cat.key;
+  }
   return DEFAULT_CAT;
 }
 
@@ -3561,7 +3569,7 @@ async function initFirebase() {
               try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
               if (settings.startHr !== S_HR || settings.endHr !== E_HR) applyRange(settings.startHr, settings.endHr);
             }
-            const cSnap = await db.ref(`users/${user.uid}/categories`).once('value');
+            const cSnap = await db.ref(`users/${user.uid}/categories_v2`).once('value');
             if (cSnap.exists() && Array.isArray(cSnap.val()) && cSnap.val().length) {
               CATEGORIES = cSnap.val();
               try { localStorage.setItem(CAT_KEY, JSON.stringify(CATEGORIES)); } catch(e) {}
@@ -4632,7 +4640,12 @@ function applySettings() {
     key:   r.querySelector('input[type=text]').value.trim(),
     color: r.querySelector('input[type=color]').value,
   })).filter(c => c.key);
-  CATEGORIES = (cats.length ? cats : DEFAULT_CATEGORIES).map(c => ({ ...c, bg: c.bg || hexToBg(c.color) }));
+  // 편집기는 key/color만 다루므로, 같은 key의 기존 별칭(aliases)을 이어받는다
+  const aliasSrc = [...CATEGORIES, ...DEFAULT_CATEGORIES];
+  CATEGORIES = (cats.length ? cats : DEFAULT_CATEGORIES).map(c => {
+    const prev = aliasSrc.find(p => p.key === c.key);
+    return { ...c, aliases: c.aliases || (prev && prev.aliases) || [], bg: c.bg || hexToBg(c.color) };
+  });
   saveCategories();
   // 알림
   settings.notify     = document.getElementById('setNotify').checked;
