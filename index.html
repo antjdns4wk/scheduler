@@ -133,10 +133,12 @@
     transition: background .12s;
   }
   .week-ctrl button:hover { background: var(--surface); color: var(--text); }
+  .week-ctrl .week-range.sat { color: var(--sat); }
+  .week-ctrl .week-range.sun { color: var(--sun); }
   .week-ctrl .week-range {
-    font-size: 13px; font-weight: 600; color: var(--text);
-    padding: 0 12px; min-width: 150px; text-align: center;
-    font-variant-numeric: tabular-nums; white-space: nowrap; cursor: default;
+    font-size: 15px; font-weight: 600; color: var(--text);
+    padding: 0 12px; min-width: 168px; text-align: center;
+    font-variant-numeric: tabular-nums; white-space: nowrap; cursor: pointer;
   }
   .btn-today {
     height: 34px; padding: 0 14px; border-radius: 9px;
@@ -331,7 +333,7 @@
   }
   .dhdr:hover { background: var(--bg); }
   .dhdr:last-child { border-right: none; }
-  .dhdr .day-name { font-size: 12px; font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+  .dhdr .day-name { font-size: 13px; font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; }
   .dhdr .day-dot  { width: 5px; height: 5px; border-radius: 50%; background: transparent; transition: background .12s; }
   .dhdr:hover .day-dot { background: var(--border-hr); }
   .dhdr .day-today-badge {
@@ -420,7 +422,7 @@
     position: absolute;
     left: 12px; top: 50%; transform: translateY(-50%);
     right: 10px;
-    font-size: 11px; font-weight: 600; line-height: 1.3;
+    font-size: 12px; font-weight: 600; line-height: 1.3;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     color: var(--blk-text, #333);
     pointer-events: none;
@@ -429,15 +431,15 @@
   }
   .blk-name { letter-spacing: -.15px; }
   .blk-time {
-    margin-left: 6px; font-size: 10px; font-weight: 500;
-    opacity: .6; font-variant-numeric: tabular-nums; letter-spacing: -.2px;
+    margin-left: 6px; font-size: 11px; font-weight: 500;
+    opacity: .62; font-variant-numeric: tabular-nums; letter-spacing: -.2px;
   }
-  .blk.compact .blk-time { font-size: 9px; margin-left: 4px; }
+  .blk.compact .blk-time { font-size: 10px; margin-left: 4px; }
   .blk-dur { display: none; }
 
   /* 완료된 블록 */
   .blk.compact { padding: 2px 6px 2px 12px; }
-  .blk.compact .blk-lbl { font-size: 10px; }
+  .blk.compact .blk-lbl { font-size: 11px; }
   /* 작은 블록: 평소엔 리사이즈 핸들 숨겨 이동 드래그 우선, active(탭)일 때만 표시 */
   .blk.compact .blk-resize { height: 5px; }
   .blk.compact:not(.active):not(:hover) .blk-resize { display: none; }
@@ -857,27 +859,6 @@
   .view-btn.active { background: #1D4ED8; color: #fff; }
   .view-btn:first-child { border-right: 1px solid var(--border); }
 
-  /* day-view navigator */
-  .day-nav-bar {
-    display: none; align-items: center; gap: 8px;
-    padding: 0 8px;
-  }
-  .day-nav-bar.show { display: flex; }
-  .day-nav-btn {
-    width: 26px; height: 26px; border-radius: 6px;
-    border: 1px solid var(--border); background: var(--bg);
-    cursor: pointer; font-size: 14px; color: var(--text-sub);
-    display: flex; align-items: center; justify-content: center;
-    transition: background .1s;
-  }
-  .day-nav-btn:hover { background: var(--border); }
-  .day-nav-label {
-    font-size: 13px; font-weight: 700; color: var(--text);
-    min-width: 90px; text-align: center; letter-spacing: .5px;
-  }
-  .day-nav-label.sat { color: var(--sat); }
-  .day-nav-label.sun { color: var(--sun); }
-
   /* single-column mode: gcols shows 1 col, fills full width */
   .gcols.day-view { grid-template-columns: minmax(0, 1fr); width: 100%; }
   .dhdrs.day-view { grid-template-columns: minmax(0, 1fr); width: 100%; }
@@ -1196,12 +1177,15 @@
   .tpl-mode-btn.sel { background: #1D4ED8; color: #fff; }
 
   /* ── Tip bar ─────────────────────────────────── */
+  /* 조작법: 한 번 배우면 끝나는 정보라 기본은 접어 둔다 (헤더 ? 로 토글) */
   .tip {
     padding: 7px 20px; font-size: 11px; color: var(--text-hint);
     background: var(--surface); border-top: 1px solid var(--border);
-    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; display: none; align-items: center; justify-content: center;
     gap: 7px; flex-wrap: wrap; line-height: 1.6;
   }
+  .tip.show { display: flex; }
+  .hdr-icon-btn.on { background: var(--accent-bg, var(--surface-muted)); color: var(--accent); }
   .tip strong { color: var(--text-sub); font-weight: 600; }
   .tip-sep { width: 1px; height: 10px; background: var(--border-hr); display: inline-block; opacity: .8; }
   .tip-hi { color: var(--accent-deep); font-weight: 700; }
@@ -1359,7 +1343,7 @@
     .bal-g-key { font-size: 10px; }
     .bal-g-key .k-full  { display: none; }
     .bal-g-key .k-short { display: inline; }
-    .bal-g-num { font-size: 9.5px; }
+    .bal-g-num { font-size: 10.5px; }
     .bal-g-bar { height: 4px; }
     .bal-total { display: none; }
     .lg-btn { height: 24px; padding: 0 8px; font-size: 10px; }
@@ -1377,7 +1361,7 @@
     .hdr-title { display: none; }              /* 제목 숨김 (공간 절약) */
     .hdr-left { gap: 6px; }
     .hdr-center { order: 3; flex-basis: 100%; justify-content: center; }
-    .week-ctrl .week-range { min-width: 120px; font-size: 12px; }
+    .week-ctrl .week-range { min-width: 132px; font-size: 14px; }
     .btn-today { height: 30px; padding: 0 10px; font-size: 11px; }
     .hdr-icon-btn { width: 30px; height: 30px; font-size: 14px; }
     .hdr-profile .pf-name { display: none; }   /* 이름 숨김, 아바타만 */
@@ -1387,7 +1371,7 @@
 
     /* 시간축 좁게 */
     .taxis { width: 36px; }
-    .tlbl  { font-size: 9px; padding: 2px 4px 0 0; }
+    .tlbl  { font-size: 10.5px; padding: 2px 4px 0 0; }
 
     /* 그리드 최소 너비 줄이기 */
     .gwrap { min-width: 0 !important; }
@@ -1436,7 +1420,8 @@
 
 
     /* 블록 라벨 크기 */
-    .blk-lbl { font-size: 9px; }
+    .blk-lbl { font-size: 11.5px; }
+    .blk-time { font-size: 10.5px; }
     /* 모바일: 체크/액션 버튼 크게 (터치하기 쉽게) */
     .blk-check { width: 22px; height: 22px; font-size: 13px; left: 4px; }
     .blk-acts > button { width: 21px; height: 21px; font-size: 11px; }
@@ -1713,6 +1698,7 @@
 
     <!-- 우측: 검색 + 설정 + 프로필 + 더보기 -->
     <div class="hdr-right">
+      <button class="hdr-icon-btn" id="btnTips" title="조작법 보기">?</button>
       <button class="hdr-icon-btn" id="btnSearch" title="날짜 검색">🔍</button>
       <button class="hdr-icon-btn" id="btnSettings" title="설정">⚙️</button>
       <div class="hdr-profile" id="userInfo" style="display:none;">
@@ -1750,8 +1736,6 @@
 
 <!-- 더보기 드롭다운 메뉴 -->
 <div class="more-menu" id="moreMenu">
-  <button class="more-item" id="miSave"><span class="mi-icon">💾</span>저장</button>
-  <div class="more-divider"></div>
   <button class="more-item" id="miWeekStats"><span class="mi-icon">📊</span>주간 통계</button>
   <button class="more-item" id="miMonthStats"><span class="mi-icon">📈</span>월간 통계</button>
   <button class="more-item" id="miTemplate"><span class="mi-icon">📋</span>템플릿</button>
@@ -1797,11 +1781,6 @@
     <button class="view-btn active" id="btnViewWeek">주간</button>
     <button class="view-btn"        id="btnViewDay">일간</button>
   </div>
-  <div class="day-nav-bar" id="dayNavBar">
-    <button class="day-nav-btn" id="dayNavPrev">&#8249;</button>
-    <span class="day-nav-label" id="dayNavLabel"></span>
-    <button class="day-nav-btn" id="dayNavNext">&#8250;</button>
-  </div>
   <div class="zoom-controls">
     <button class="zoom-btn" id="zoomOut">−</button>
     <span class="zoom-pct" id="zoomPct">100%</span>
@@ -1811,7 +1790,6 @@
   <div class="savebar-actions">
     <!-- 숨겨진 실제 동작 버튼 (헤더/더보기에서 .click()로 호출) -->
     <input type="file" id="fileInput" accept=".json" style="display:none">
-    <button id="btnSave" style="display:none;"></button>
     <button id="btnExport" style="display:none;"></button>
     <button id="btnImport" style="display:none;"></button>
     <button id="btnWeekStats" style="display:none;"></button>
@@ -3649,7 +3627,6 @@ function switchView(mode) {
   viewMode = mode;
   const gcols = document.getElementById('gcols');
   const dhdrs = document.getElementById('dhdrs');
-  const dayBar = document.getElementById('dayNavBar');
   const btnW  = document.getElementById('btnViewWeek');
   const btnD  = document.getElementById('btnViewDay');
 
@@ -3658,7 +3635,6 @@ function switchView(mode) {
     dhdrs.classList.remove('day-view');
     document.getElementById('gscroll').classList.remove('day-view-scroll');
     document.getElementById('gwrap').style.minWidth = '';
-    dayBar.classList.remove('show');
     btnW.classList.add('active'); btnD.classList.remove('active');
     // show all columns
     document.querySelectorAll('.dcol').forEach(c => { c.style.display = ''; c.classList.remove('dual-track'); });
@@ -3671,7 +3647,6 @@ function switchView(mode) {
     dhdrs.classList.add('day-view');
     document.getElementById('gscroll').classList.add('day-view-scroll');
     document.getElementById('gwrap').style.minWidth = '0';
-    dayBar.classList.add('show');
     btnD.classList.add('active'); btnW.classList.remove('active');
     // 모바일: 메모창 기본 닫힘 / PC: 기본 열림
     if (!isMobile()) {
@@ -3689,6 +3664,7 @@ function switchView(mode) {
     memoToggle.style.display = 'none';
   }
   updateRtLeg();   // 3-5-7-9 밸런스 바 기준(하루/주간) 갱신
+  updateWeekTag(); // 헤더 라벨/화살표 의미도 뷰 따라 바뀐다
 }
 
 /* ════════════════════════════════════════════════
@@ -4134,10 +4110,8 @@ function setDayView(di) {
   // 트랙 라벨 표시
   document.getElementById('dayTrackLabels').classList.add('show');
   requestAnimationFrame(syncAxisSpacer);
-  // update nav label
-  const lbl = document.getElementById('dayNavLabel');
-  lbl.textContent = DAYS_EN[di] + '  ' + DAYS_KO[di].replace('요일','');
-  lbl.className   = 'day-nav-label' + (di===5?' sat':di===6?' sun':'');
+  // 헤더 가운데 라벨이 날짜를 보여준다 (하단 day-nav는 제거됨)
+  updateWeekTag();
   // refresh memo
   initMemoPanel(di);
   if (viewMode === 'day') updateRtLeg();
@@ -4157,12 +4131,6 @@ document.getElementById('memoClearBtn').addEventListener('click', () => {
 document.getElementById('btnViewDay').addEventListener('click',  () => {
   dayView = todayIdx;   // default to today when switching
   switchView('day');
-});
-document.getElementById('dayNavPrev').addEventListener('click', () => {
-  setDayView((dayView + 6) % 7);
-});
-document.getElementById('dayNavNext').addEventListener('click', () => {
-  setDayView((dayView + 1) % 7);
 });
 
 function getWeekKey(offset) {
@@ -4187,8 +4155,28 @@ function getWeekLabel(offset) {
   return `${monday.getFullYear()} ${fmt(monday)}–${fmt(sunday)}${rel}`;
 }
 
+// 헤더 가운데 라벨 — 주간이면 주 범위, 일간이면 그 날짜.
+// 화살표의 의미(한 주 / 하루)도 같이 바뀌므로 title도 여기서 맞춘다.
 function updateWeekTag() {
-  document.getElementById('weekTag').textContent = getWeekLabel(weekOffset);
+  const tag = document.getElementById('weekTag');
+  if (!tag) return;
+  const isDay = (viewMode === 'day');
+  if (isDay) {
+    const DAYS_KR = ['월','화','수','목','금','토','일'];
+    const mon = getWeekMonday(weekOffset);
+    const d = new Date(mon); d.setDate(mon.getDate() + dayView);
+    const isToday = (weekOffset === 0 && dayView === todayIdx);
+    tag.textContent = `${d.getFullYear()} ${d.getMonth()+1}/${d.getDate()} (${DAYS_KR[dayView]})`
+                    + (isToday ? ' · 오늘' : '');
+    tag.className = 'week-range' + (dayView === 5 ? ' sat' : dayView === 6 ? ' sun' : '');
+  } else {
+    tag.textContent = getWeekLabel(weekOffset);
+    tag.className = 'week-range';
+  }
+  tag.title = '클릭하면 날짜로 이동';
+  const p = document.getElementById('weekPrev'), n = document.getElementById('weekNext');
+  if (p) p.title = isDay ? '전날 (←)'   : '이전 주 (←)';
+  if (n) n.title = isDay ? '다음날 (→)' : '다음 주 (→)';
 }
 
 /* ── Date search ─────────────────────────────── */
@@ -4280,16 +4268,17 @@ function refreshDayHeaders() {
   });
 }
 
-document.getElementById('weekPrev').addEventListener('click', () => {
-  weekOffset--; updateWeekTag(); refreshDayHeaders();
+// 주 단위 이동의 실체. 화살표 버튼은 이걸 직접 부르지 않고
+// navigatePrev/Next를 거친다 (뷰에 따라 하루/한 주가 갈리므로).
+async function shiftWeek(delta) {
+  weekOffset += delta;
+  updateWeekTag(); refreshDayHeaders();
   const k = getWeekKey(weekOffset);
-  attachFirebaseListener(k); loadWeek(k);
-});
-document.getElementById('weekNext').addEventListener('click', () => {
-  weekOffset++; updateWeekTag(); refreshDayHeaders();
-  const k = getWeekKey(weekOffset);
-  attachFirebaseListener(k); loadWeek(k);
-});
+  attachFirebaseListener(k);
+  await loadWeek(k);
+}
+document.getElementById('weekPrev').addEventListener('click', navigatePrev);
+document.getElementById('weekNext').addEventListener('click', navigateNext);
 
 /* ══════════════════════════════════════════════
    FIREBASE 동적 로드 및 초기화
@@ -4518,12 +4507,6 @@ async function loadWeek(key) {
   setTimeout(() => dedupeBlocks(), 300);
   showToast(fbConnected ? '🟢 동기화 완료' : '📂 로컬에서 불러왔어요');
 }
-
-/* ── Save button ─────────────────────────────── */
-document.getElementById('btnSave').addEventListener('click', () => {
-  autoSave();
-  showToast('💾 저장 완료!');
-});
 
 /* ── JSON Export ────────────────────────────── */
 document.getElementById('btnExport').addEventListener('click', () => {
@@ -5047,7 +5030,6 @@ function wireMore(itemId, btnId) {
     document.getElementById(btnId).click();
   });
 }
-wireMore('miSave', 'btnSave');
 wireMore('miWeekStats', 'btnWeekStats');
 wireMore('miTemplate', 'btnTemplate');
 wireMore('miArchive', 'btnArchive');
@@ -5098,34 +5080,19 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// 이전(왼쪽 화살표): 일간이면 전날, 주간이면 이전 주
-function navigatePrev() {
-  if (viewMode === 'day') {
-    if (dayView === 0) {
-      // 월요일에서 왼쪽 → 이전 주 일요일
-      document.getElementById('weekPrev').click();
-      setTimeout(() => setDayView(6), 50);
-    } else {
-      setDayView(dayView - 1);
-    }
-  } else {
-    document.getElementById('weekPrev').click();
-  }
+// 이전(왼쪽 화살표): 일간이면 전날, 주간이면 이전 주.
+// 헤더 화살표와 키보드가 모두 이 함수를 쓴다 — 이동 수단은 이 둘뿐이다.
+async function navigatePrev() {
+  if (viewMode === 'day' && dayView > 0) { setDayView(dayView - 1); return; }
+  await shiftWeek(-1);
+  if (viewMode === 'day') setDayView(6);   // 월요일에서 더 가면 지난 주 일요일
 }
 
 // 다음(오른쪽 화살표): 일간이면 다음날, 주간이면 다음 주
-function navigateNext() {
-  if (viewMode === 'day') {
-    if (dayView === 6) {
-      // 일요일에서 오른쪽 → 다음 주 월요일
-      document.getElementById('weekNext').click();
-      setTimeout(() => setDayView(0), 50);
-    } else {
-      setDayView(dayView + 1);
-    }
-  } else {
-    document.getElementById('weekNext').click();
-  }
+async function navigateNext() {
+  if (viewMode === 'day' && dayView < 6) { setDayView(dayView + 1); return; }
+  await shiftWeek(1);
+  if (viewMode === 'day') setDayView(0);   // 일요일에서 더 가면 다음 주 월요일
 }
 
 // 검색 버튼 → 검색 모달 (라벨 검색 + 날짜 이동)
@@ -5701,8 +5668,31 @@ document.getElementById('miMonthStats').addEventListener('click', () => {
   openMonthStats();
 });
 
+/* ── 조작법 토글 ─────────────────────────────
+   처음 세 번까지는 자동으로 펼쳐 보여주고, 그 뒤로는 접어 둔다. */
+const TIP_KEY = 'tip_seen_v1';
+function initTips() {
+  const tip = document.querySelector('.tip');
+  const btn = document.getElementById('btnTips');
+  if (!tip || !btn) return;
+  let seen = 0;
+  try { seen = parseInt(localStorage.getItem(TIP_KEY) || '0', 10) || 0; } catch(e) {}
+  if (seen < 3) {
+    tip.classList.add('show');
+    try { localStorage.setItem(TIP_KEY, String(seen + 1)); } catch(e) {}
+  }
+  const sync = () => {
+    const on = tip.classList.contains('show');
+    btn.classList.toggle('on', on);
+    btn.title = on ? '조작법 숨기기' : '조작법 보기';
+  };
+  btn.addEventListener('click', () => { tip.classList.toggle('show'); sync(); });
+  sync();
+}
+
 /* ── 초기화 ── */
 buildAxis(); buildGrid(); syncScroll();
+initTips();
 updateWeekTag();
 updateNowLine();  // 현재 시각 선 표시
 renderCatChips();
