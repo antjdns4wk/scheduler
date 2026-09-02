@@ -44,11 +44,18 @@
 로드 시 `normalizeBlock(b)`으로 현재 `S_HR` 기준 `si`를 다시 계산한다.
 **블록을 저장하는 코드는 반드시 `withAnchor`를, 읽는 코드는 `normalizeBlock`을 통과시켜야 한다.**
 
-메모 블록 = `{ id, color, title, body, ts }` (일자별 배열)
+메모 블록 = `{ id, color, title, body, ts, done }` (일자별 배열)
 
 **메모의 순서는 배열 순서이고, 배열은 DOM 순서에서 만들어진다.**
 `persistMemo()`가 `#memoScroll` 안의 `.memo-block`을 위에서 아래로 훑어 저장하므로,
 순서를 바꾸려면 DOM 노드를 옮긴 뒤 `persistMemo()`만 부르면 된다 (드래그 정렬이 이 방식).
+
+**완료(`done`)한 메모는 항상 목록 맨 아래.** `sortMemoDone()`이 안정 분할(stable partition)로
+미완료 → 완료 순서로 재배치하므로, 같은 그룹 안에서 손으로 잡아 놓은 순서는 유지된다.
+완료 토글·드래그 정렬·복제·새 메모 추가 등 **순서가 바뀔 수 있는 모든 경로에서 호출해야 한다.**
+필터(`memoFilter`: `all`/`todo`/`done`)는 `.mb-hidden`으로 감추기만 하고 DOM에서 빼지 않으므로,
+**DOM을 훑는 코드는 `.mb-hidden`을 걸러야 한다** (드래그 삽입 위치 계산이 그렇다).
+상태 변경 후에는 `applyMemoFilter()`를 불러 카운트와 빈 상태 문구까지 갱신한다.
 
 메모 색은 `dataset.color`(저장값)와 CSS 변수 `--mb-color`(왼쪽 띠) 두 곳에 반영된다.
 둘을 따로 건드리지 말고 `applyMemoColor(blockEl, dotEl, col, preview)`를 쓸 것
@@ -131,6 +138,7 @@ users/{uid}/recurring             매주 반복 정의
 | 통계 | `openStats(dayIdx)`, `openWeekStats`, `openMonthStats(y, m)` |
 | 저장/로드 | `autoSave`, `saveWeekData`, `loadWeekData`, `loadAllWeeks`, `loadWeek`, `attachFirebaseListener` |
 | 메모 | `initMemoPanel`, `addMemoBlock`, `persistMemo`, `moveMemoToNextDay`, `finishMemoDrag`, `applyMemoColor` |
+| 메모 완료/필터 | `toggleMemoDone`, `sortMemoDone`, `applyMemoFilter`, `renderMemoEmpty` |
 | 템플릿 | `saveTemplate`, `applyTemplate`, `renderTplList` (전부 async) |
 | 타이머 | `startTimer`, `commitTimer`, `updateLiveTimerBlock` |
 | 반복 | `toggleRecurring`, `applyRecurringToWeek`, `loadRecurringFromCloud` |
@@ -173,6 +181,7 @@ users/{uid}/recurring             매주 반복 정의
 `⧉` 복사 · `↻` 매주 반복 · `▶` 타이머 · `×` 삭제가 펼쳐진다.
 
 메모: 손잡이(`⠿`)로 순서 변경 · 색 점을 누른 채 끌어서 색 변경 ·
+체크(`✓`)로 완료 표시(완료는 맨 아래로) · 헤더에서 전체/미완료/완료 필터 ·
 모바일은 상단 손잡이로 시트 높이 30/60/90vh 조절(탭하면 순환).
 
 ## 수정할 때 주의사항
@@ -220,6 +229,8 @@ python -m http.server 8971 --bind 127.0.0.1
 - 블록 생성(클릭/드래그) → 이동 → 리사이즈 → Alt 복사 → 삭제
 - 일간 보기 메모: 손잡이로 순서 바꾸기 → 새로고침 후 순서 유지 · 창 크기 변경 후에도 패널 유지
 - 메모 색: 점을 누른 채 색 위로 끌어 놓기 / 눌렀다 떼고 클릭 — 두 방식 모두
+- 메모 완료: 체크 → 맨 아래로 이동 · 해제 → 미완료 그룹 끝으로 · 새로고침 후 유지
+- 메모 필터 전체/미완료/완료 전환과 카운트, 완료 필터 상태에서 새 메모 추가
 - 날짜 이동: 헤더 화살표와 키보드 `←`/`→`가 같은 결과를 내는지, 주 경계(월↔일)에서도
 - 조작법 `?` 토글, 헤더 `📊`가 뷰에 맞는 통계를 여는지
 - 주간 보기 요일 헤더의 이행률 막대 (미래 날짜·실제 기록 없는 주에는 안 그려져야 함)

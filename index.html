@@ -945,7 +945,28 @@
     background: var(--surface);
     flex-shrink: 0;
   }
-  .memo-head-title { font-size: 12px; font-weight: 700; color: var(--text-sub); letter-spacing: .4px; }
+  .memo-head-title { font-size: 12px; font-weight: 700; color: var(--text-sub); letter-spacing: .4px; flex-shrink: 0; }
+  .memo-head .hd-long { font-style: normal; }
+  .memo-add-btn, .memo-clear-btn { white-space: nowrap; flex-shrink: 0; }
+  /* 완료 / 미완료 필터 */
+  .memo-filter {
+    display: flex; gap: 2px; margin-left: 8px;
+    background: var(--surface-muted); border-radius: 7px; padding: 2px;
+  }
+  .mf-btn {
+    height: 22px; padding: 0 8px; border: none; border-radius: 5px;
+    background: transparent; cursor: pointer; font-family: var(--font);
+    font-size: 11px; font-weight: 600; color: var(--text-hint);
+    display: flex; align-items: center; gap: 4px; white-space: nowrap;
+    transition: background .12s, color .12s;
+  }
+  .mf-btn i {
+    font-style: normal; font-size: 10px; font-weight: 700;
+    color: var(--text-hint); font-variant-numeric: tabular-nums;
+  }
+  .mf-btn:hover { color: var(--text-sub); }
+  .mf-btn.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+  .mf-btn.on i { color: var(--accent); }
   .memo-head-day   { font-size: 12px; font-weight: 700; color: var(--text); }
   .memo-head-day.sat { color: var(--sat); }
   .memo-head-day.sun { color: var(--sun); }
@@ -1021,6 +1042,25 @@
     width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; cursor: pointer;
     border: 1.5px solid rgba(0,0,0,.12);
   }
+  /* 완료 체크 */
+  .memo-check {
+    width: 17px; height: 17px; border-radius: 50%; flex-shrink: 0; padding: 0;
+    border: 1.5px solid var(--border-hr); background: var(--surface);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; line-height: 1; font-family: var(--font);
+    color: transparent; transition: background .12s, border-color .12s, color .12s;
+  }
+  .memo-check:hover { border-color: var(--ok, #16A34A); color: var(--border-hr); }
+  .memo-block.done .memo-check {
+    background: var(--ok, #16A34A); border-color: var(--ok, #16A34A); color: #fff;
+  }
+  /* 완료된 메모 */
+  .memo-block.done { opacity: .58; }
+  .memo-block.done .memo-block-title { text-decoration: line-through; color: var(--text-hint); }
+  .memo-block.done .memo-block-body  { text-decoration: line-through; color: var(--text-hint); }
+  .memo-block.done:focus-within { opacity: 1; }
+  /* 필터로 가려진 메모 */
+  .memo-block.mb-hidden { display: none !important; }
   .memo-block-title {
     flex: 1; border: none; outline: none; font-size: 12px; font-weight: 600;
     font-family: var(--font); color: var(--text);
@@ -1497,6 +1537,15 @@
     /* 순서 바꾸기 손잡이: 그립 모양은 그대로, 터치 영역만 넓힌다 */
     .memo-drag-handle { width: 30px; height: 32px; margin-left: -4px; }
 
+    /* 메모 헤드: 필터가 들어오면서 좁아졌다. 라벨을 줄여 한 줄에 맞춘다 */
+    .memo-head { gap: 6px; padding: 8px 10px; }
+    .memo-head-title { display: none; }          /* 날짜만으로 충분 */
+    .memo-head-day { flex-shrink: 0; }
+    .memo-head .hd-long { display: none; }       /* "블록 ", "전체 " 생략 */
+    .memo-filter { margin-left: auto; padding: 2px; }
+    .mf-btn { padding: 0 6px; font-size: 10.5px; gap: 3px; }
+    .memo-add-btn, .memo-clear-btn { padding: 0 8px; }
+
     /* 일간 모드: schedule wrap 전체 폭 */
     .day-layout { flex-direction: column; }
     .day-schedule-wrap { flex: 1; min-width: 0; }
@@ -1804,8 +1853,13 @@
       <div class="memo-head">
         <span class="memo-head-title">📝 메모</span>
         <span class="memo-head-day" id="memoHeadDay"></span>
-        <button class="memo-add-btn" id="memoAddBtn">＋ 블록 추가</button>
-        <button class="memo-clear-btn" id="memoClearBtn">전체 삭제</button>
+        <div class="memo-filter" id="memoFilter">
+          <button class="mf-btn on" data-f="all">전체 <i>0</i></button>
+          <button class="mf-btn"    data-f="todo">미완료 <i>0</i></button>
+          <button class="mf-btn"    data-f="done">완료 <i>0</i></button>
+        </div>
+        <button class="memo-add-btn" id="memoAddBtn">＋ <i class="hd-long">블록 </i>추가</button>
+        <button class="memo-clear-btn" id="memoClearBtn"><i class="hd-long">전체 </i>삭제</button>
       </div>
       <div class="memo-scroll" id="memoScroll"></div>
     </div>
@@ -3798,6 +3852,7 @@ function persistMemo() {
       title: el.querySelector('.memo-block-title').value,
       body:  el.querySelector('.memo-block-body').value,
       ts:    el.dataset.ts,
+      done:  el.dataset.done === '1',
     });
   });
   saveMemoBlocks(memoDay, arr);
@@ -3809,12 +3864,13 @@ function showMemoSaved(savedEl) {
 }
 
 function createMemoBlockEl(data) {
-  const { id, color, title, body, ts } = data;
+  const { id, color, title, body, ts, done } = data;
   const el = document.createElement('div');
-  el.className   = 'memo-block';
+  el.className   = 'memo-block' + (done ? ' done' : '');
   el.dataset.mid = id;
   el.dataset.color = color;
   el.dataset.ts    = ts || new Date().toISOString();
+  el.dataset.done  = done ? '1' : '0';
   el.style.setProperty('--mb-color', color);   // 왼쪽 띠 색
 
   const tsLabel = ts ? new Date(ts).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
@@ -3822,6 +3878,7 @@ function createMemoBlockEl(data) {
   el.innerHTML = `
     <div class="memo-block-header">
       <div class="memo-drag-handle" data-drag="${id}" title="드래그해서 순서 바꾸기"></div>
+      <button class="memo-check" data-check="${id}" title="완료 표시">✓</button>
       <div class="memo-block-color" style="background:${color}" data-color-btn="${id}"></div>
       <input class="memo-block-title" type="text" placeholder="제목 (선택)" value="${esc(title)}">
       <button class="memo-block-act" data-dup="${id}" title="복제">⎘</button>
@@ -3864,10 +3921,15 @@ function addMemoBlock(dayIdx, data) {
     title: '',
     body: '',
     ts: new Date().toISOString(),
+    done: false,
   };
   const el = createMemoBlockEl(blockData);
   scroll.appendChild(el);
   if (!data) {
+    // 새 메모는 미완료 → 완료 블록들보다 위에 놓는다
+    sortMemoDone();
+    if (memoFilter === 'done') memoFilter = 'all';   // 안 보이는 곳에 만들지 않는다
+    applyMemoFilter();
     persistMemo();
     el.querySelector('.memo-block-body').focus();
   }
@@ -3875,12 +3937,74 @@ function addMemoBlock(dayIdx, data) {
 
 function renderMemoEmpty() {
   const scroll = document.getElementById('memoScroll');
-  if (scroll.querySelector('.memo-block')) return;
+  scroll.querySelectorAll('.memo-empty').forEach(e => e.remove());
+  const total   = scroll.querySelectorAll('.memo-block').length;
+  const visible = scroll.querySelectorAll('.memo-block:not(.mb-hidden)').length;
+  if (visible > 0) return;
   const empty = document.createElement('div');
   empty.className = 'memo-empty';
-  empty.innerHTML = '<div class="memo-empty-icon">📝</div><div>블록 추가 버튼을 눌러<br>메모를 시작해보세요</div>';
+  empty.innerHTML = total === 0
+    ? '<div class="memo-empty-icon">📝</div><div>블록 추가 버튼을 눌러<br>메모를 시작해보세요</div>'
+    : (memoFilter === 'done'
+        ? '<div class="memo-empty-icon">✅</div><div>완료한 메모가 아직 없어요</div>'
+        : '<div class="memo-empty-icon">🎉</div><div>미완료 메모가 없어요<br>전부 끝냈네요</div>');
   scroll.appendChild(empty);
 }
+
+/* ── 메모 완료 / 필터 ──────────────────────────
+   완료한 메모는 목록 맨 아래로 내려간다. 안정 분할(stable partition)이라
+   같은 그룹 안에서 손으로 잡아 놓은 순서는 그대로 유지된다.
+   저장 순서 = DOM 순서이므로, 옮긴 뒤 persistMemo()만 부르면 된다. */
+let memoFilter = 'all';   // 'all' | 'todo' | 'done'
+
+function sortMemoDone() {
+  const scroll = document.getElementById('memoScroll');
+  if (!scroll) return;
+  const blocks = [...scroll.querySelectorAll('.memo-block')];
+  const todo = blocks.filter(e => e.dataset.done !== '1');
+  const done = blocks.filter(e => e.dataset.done === '1');
+  [...todo, ...done].forEach(e => scroll.appendChild(e));
+}
+
+function applyMemoFilter() {
+  const scroll = document.getElementById('memoScroll');
+  if (!scroll) return;
+  let todo = 0, done = 0;
+  scroll.querySelectorAll('.memo-block').forEach(el => {
+    const isDone = el.dataset.done === '1';
+    isDone ? done++ : todo++;
+    const show = memoFilter === 'all' || (memoFilter === 'done') === isDone;
+    el.classList.toggle('mb-hidden', !show);
+  });
+  const wrap = document.getElementById('memoFilter');
+  if (wrap) {
+    const n = { all: todo + done, todo, done };
+    wrap.querySelectorAll('.mf-btn').forEach(b => {
+      b.classList.toggle('on', b.dataset.f === memoFilter);
+      const i = b.querySelector('i');
+      if (i) i.textContent = n[b.dataset.f];
+    });
+  }
+  renderMemoEmpty();
+}
+
+// 완료 토글 — 상태 반영 → 맨 아래로 정렬 → 필터 갱신 → 저장
+function toggleMemoDone(el) {
+  const done = el.dataset.done !== '1';
+  el.dataset.done = done ? '1' : '0';
+  el.classList.toggle('done', done);
+  sortMemoDone();
+  applyMemoFilter();
+  persistMemo();
+  if (done && navigator.vibrate) navigator.vibrate(12);
+}
+
+document.getElementById('memoFilter').addEventListener('click', e => {
+  const btn = e.target.closest('.mf-btn');
+  if (!btn) return;
+  memoFilter = btn.dataset.f;
+  applyMemoFilter();
+});
 
 /* ── 메모 블록 순서 바꾸기 (드래그) ───────────
    손잡이(⠿)를 잡고 위아래로 끌면 DOM 순서가 바뀌고,
@@ -3918,7 +4042,9 @@ document.addEventListener('pointermove', e => {
   else if (e.clientY > r.bottom - EDGE) scroll.scrollTop += 10;
 
   // 포인터가 어느 블록의 위쪽 절반에 있는지 → 그 앞에 끼워넣는다
-  const sibs = [...scroll.querySelectorAll('.memo-block')].filter(x => x !== el);
+  // 필터로 숨겨진 블록은 대상에서 뺀다 (rect가 0이라 엉뚱한 자리에 꽂힌다)
+  const sibs = [...scroll.querySelectorAll('.memo-block')]
+    .filter(x => x !== el && !x.classList.contains('mb-hidden'));
   let before = null;
   for (const s of sibs) {
     const b = s.getBoundingClientRect();
@@ -3938,6 +4064,7 @@ function finishMemoDrag() {
   el.classList.remove('mb-dragging');
   document.body.classList.remove('dragging');
   if (moved) {
+    sortMemoDone();         // 완료는 다시 아래로 (같은 그룹 안 순서는 유지)
     persistMemo();          // DOM 순서 = 저장 순서
     if (navigator.vibrate) navigator.vibrate(10);
     showToast('📝 메모 순서를 바꿨어요');
@@ -3956,22 +4083,27 @@ function initMemoPanel(di) {
   scroll.innerHTML = '';
 
   loadMemoBlocks(di).then(arr => {
-    if (!arr || arr.length === 0) {
-      renderMemoEmpty();
-    } else {
-      arr.forEach(d => addMemoBlock(di, d));
-    }
+    (arr || []).forEach(d => addMemoBlock(di, d));
+    sortMemoDone();       // 완료는 항상 아래
+    applyMemoFilter();    // 카운트 갱신 + 빈 상태 표시
   });
 }
 
 // event delegation for delete + color picker
 document.getElementById('memoScroll').addEventListener('click', e => {
+  // 완료 토글
+  const chkBtn = e.target.closest('[data-check]');
+  if (chkBtn) {
+    const el = chkBtn.closest('.memo-block');
+    if (el) toggleMemoDone(el);
+    return;
+  }
   // delete
   const delBtn = e.target.closest('[data-del]');
   if (delBtn) {
     const id = delBtn.dataset.del;
     const el = document.querySelector(`.memo-block[data-mid="${id}"]`);
-    if (el) { el.remove(); persistMemo(); renderMemoEmpty(); }
+    if (el) { el.remove(); persistMemo(); applyMemoFilter(); }
     return;
   }
   // 복제
@@ -3986,9 +4118,12 @@ document.getElementById('memoScroll').addEventListener('click', e => {
         title: el.querySelector('.memo-block-title').value,
         body:  el.querySelector('.memo-block-body').value,
         ts: new Date().toISOString(),
+        done: false,   // 복제본은 할 일로 시작한다
       };
       const newEl = createMemoBlockEl(newData);
       el.after(newEl);
+      sortMemoDone();
+      applyMemoFilter();
       persistMemo();
       showToast('📋 메모를 복제했어요');
     }
@@ -4013,6 +4148,7 @@ async function moveMemoToNextDay(el) {
     title: el.querySelector('.memo-block-title').value,
     body:  el.querySelector('.memo-block-body').value,
     ts: el.dataset.ts,
+    done: el.dataset.done === '1',
   };
   const curDay = memoDay;
   const nextDay = (curDay + 1) % 7;
@@ -4021,7 +4157,7 @@ async function moveMemoToNextDay(el) {
   // 현재 화면에서 제거 + 저장
   el.remove();
   persistMemo();
-  renderMemoEmpty();
+  applyMemoFilter();
 
   if (crossWeek) {
     // 다음 주 월요일로: weekOffset+1의 day 0에 저장
@@ -4213,7 +4349,7 @@ document.getElementById('memoClearBtn').addEventListener('click', () => {
   if (scroll.querySelector('.memo-block') && confirm('모든 메모 블록을 삭제할까요?')) {
     scroll.innerHTML = '';
     saveMemoBlocks(memoDay, []);
-    renderMemoEmpty();
+    applyMemoFilter();
     showToast('🗑 메모를 모두 지웠어요');
   }
 });
