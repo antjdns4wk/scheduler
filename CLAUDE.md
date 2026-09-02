@@ -50,6 +50,15 @@
 `persistMemo()`가 `#memoScroll` 안의 `.memo-block`을 위에서 아래로 훑어 저장하므로,
 순서를 바꾸려면 DOM 노드를 옮긴 뒤 `persistMemo()`만 부르면 된다 (드래그 정렬이 이 방식).
 
+메모 색은 `dataset.color`(저장값)와 CSS 변수 `--mb-color`(왼쪽 띠) 두 곳에 반영된다.
+둘을 따로 건드리지 말고 `applyMemoColor(blockEl, dotEl, col, preview)`를 쓸 것
+(`preview: true`면 화면만 바꾸고 `dataset.color`는 건드리지 않는다).
+
+**떠 있는 팝오버는 위치를 한 번만 쓸 것.** 크기를 재려고 다른 위치(`visibility:hidden`,
+화면 밖 좌표)에 붙였다가 옮기면 반영이 한 프레임 늦어, 곧바로 이어지는 드래그가
+히트테스트에서 그 요소를 놓친다. `openColorPicker`는 최종 위치로 붙인 뒤
+화면 밖으로 넘칠 때만 보정한다.
+
 ## 좌표계 규칙 (가장 헷갈리는 부분)
 
 | 단위 | 이름 | 값 |

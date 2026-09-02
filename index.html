@@ -975,6 +975,8 @@
   .memo-block {
     background: var(--surface); border-radius: 10px;
     border: 1.5px solid var(--border);
+    /* 왼쪽 띠 = 메모 색. --mb-color는 JS가 넣는다 */
+    border-left: 3px solid var(--mb-color, var(--border));
     display: flex; flex-direction: column;
     transition: border-color .12s, box-shadow .12s;
     overflow: hidden;
@@ -1052,7 +1054,9 @@
 
   /* color picker popup */
   .memo-color-picker {
-    position: absolute; z-index: 200;
+    /* 모바일 메모 패널(z-index 500) 위에 떠야 한다. 200이던 시절엔
+       모바일에서 팔레트가 패널 뒤에 가려 아예 누를 수 없었다. */
+    position: fixed; z-index: 600;
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 8px; padding: 6px 8px;
     display: flex; gap: 6px; flex-wrap: wrap; width: 124px;
@@ -1061,9 +1065,20 @@
   .memo-color-picker .cp-dot {
     width: 18px; height: 18px; border-radius: 50%; cursor: pointer;
     border: 2px solid transparent; transition: border-color .1s, transform .1s;
+    touch-action: none;
   }
   .memo-color-picker .cp-dot:hover { transform: scale(1.2); }
   .memo-color-picker .cp-dot.sel { border-color: var(--text); }
+  /* 드래그로 색 위를 지나갈 때 (포인터 캡처 중이라 :hover가 안 걸린다) */
+  .memo-color-picker .cp-dot.hot {
+    transform: scale(1.35);
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px currentColor;
+  }
+  .memo-color-picker .cp-hint {
+    width: 100%; font-size: 10px; color: var(--text-hint);
+    text-align: center; margin-top: 2px;
+  }
+  .memo-block-color { touch-action: none; }
 
   /* empty state */
   .memo-empty {
@@ -3735,6 +3750,7 @@ function createMemoBlockEl(data) {
   el.dataset.mid = id;
   el.dataset.color = color;
   el.dataset.ts    = ts || new Date().toISOString();
+  el.style.setProperty('--mb-color', color);   // 왼쪽 띠 색
 
   const tsLabel = ts ? new Date(ts).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
 
@@ -3921,12 +3937,7 @@ document.getElementById('memoScroll').addEventListener('click', e => {
     if (el) moveMemoToNextDay(el);
     return;
   }
-  // color button
-  const colorBtn = e.target.closest('[data-color-btn]');
-  if (colorBtn) {
-    openColorPicker(colorBtn);
-    return;
-  }
+  // 색 점은 pointerdown에서 처리한다 (누른 채 끌어서 고르기 지원)
 });
 
 // 메모를 다음 날로 이동
@@ -3970,42 +3981,144 @@ async function moveMemoToNextDay(el) {
   }
 }
 
+// 메모 색 적용 (preview=true면 화면만 바꾸고 저장하지 않는다)
+function applyMemoColor(blockEl, dotEl, col, preview) {
+  if (!blockEl) return;
+  if (dotEl) dotEl.style.background = col;
+  blockEl.style.setProperty('--mb-color', col);
+  if (!preview) blockEl.dataset.color = col;
+  const picker = document.getElementById('memoColorPicker');
+  if (picker) picker.querySelectorAll('.cp-dot')
+    .forEach(d => d.classList.toggle('sel', d.dataset.col === col));
+}
+
 function openColorPicker(dotEl) {
   closeColorPicker();
+  const blockEl = dotEl.closest('.memo-block');
   const picker = document.createElement('div');
   picker.className = 'memo-color-picker';
   picker.id = 'memoColorPicker';
   MEMO_COLORS.forEach(col => {
     const d = document.createElement('div');
     d.className = 'cp-dot';
+    d.dataset.col = col;
     d.style.background = col;
-    const blockEl = dotEl.closest('.memo-block');
+    d.style.color = col;                 // .hot 링이 currentColor를 쓴다
     if (blockEl && blockEl.dataset.color === col) d.classList.add('sel');
+    // 클릭으로도 고를 수 있게 (기존 방식 유지)
     d.addEventListener('click', () => {
-      const block = dotEl.closest('.memo-block');
-      if (block) {
-        block.dataset.color = col;
-        dotEl.style.background = col;
-        // also update left border accent
-        block.style.borderLeftColor = col;
-      }
+      applyMemoColor(blockEl, dotEl, col);
       persistMemo();
       closeColorPicker();
     });
     picker.appendChild(d);
   });
-  // position near dot
+  const hint = document.createElement('div');
+  hint.className = 'cp-hint';
+  hint.textContent = '끌어서 놓기';
+  picker.appendChild(hint);
+
+  // position near dot (화면 밖으로 나가지 않게 보정)
   const rect = dotEl.getBoundingClientRect();
+  // 처음부터 최종 위치로 붙인다. 재려고 다른 곳에 붙였다가 옮기면
+  // (visibility 토글이든 화면 밖 좌표든) 위치가 한 프레임 늦게 반영돼,
+  // 바로 이어지는 드래그가 색을 집지 못한다.
+  // 화면 밖으로 넘칠 때만 보정하므로 보통은 위치를 한 번만 쓴다.
   picker.style.position = 'fixed';
+  picker.style.left = Math.max(8, rect.left) + 'px';
   picker.style.top  = (rect.bottom + 4) + 'px';
-  picker.style.left = rect.left + 'px';
   document.body.appendChild(picker);
-  setTimeout(() => document.addEventListener('click', closeColorPicker, { once: true }), 0);
+  const pw = picker.offsetWidth, ph = picker.offsetHeight;
+  if (rect.left + pw > window.innerWidth - 8)
+    picker.style.left = Math.max(8, window.innerWidth - pw - 8) + 'px';
+  if (rect.bottom + 4 + ph > window.innerHeight - 8)
+    picker.style.top  = Math.max(8, rect.top - ph - 4) + 'px';
 }
 function closeColorPicker() {
   const p = document.getElementById('memoColorPicker');
   if (p) p.remove();
 }
+
+/* ── 메모 색 드래그로 바꾸기 ───────────────────
+   색 점을 누르면 팔레트가 바로 열리고, 누른 채 색 위로 끌면
+   실시간으로 미리보기 → 놓는 순간 확정. 그냥 눌렀다 떼면
+   팔레트가 열린 채로 남아 기존처럼 클릭해서 고를 수도 있다. */
+let memoColorDrag = null;
+
+// 좌표 아래에 있는 팔레트 색 (포인터 캡처 중이라 :hover를 못 쓴다)
+function swatchColorAt(x, y) {
+  const el = document.elementFromPoint(x, y);
+  const dot = (el && el.closest) ? el.closest('#memoColorPicker .cp-dot') : null;
+  return dot ? dot.dataset.col : null;
+}
+function hotSwatch(col) {
+  const p = document.getElementById('memoColorPicker'); if (!p) return;
+  p.querySelectorAll('.cp-dot').forEach(d => d.classList.toggle('hot', d.dataset.col === col));
+}
+
+document.getElementById('memoScroll').addEventListener('pointerdown', e => {
+  const dot = e.target.closest('[data-color-btn]');
+  if (!dot) return;
+  e.preventDefault(); e.stopPropagation();
+  const blockEl = dot.closest('.memo-block');
+  openColorPicker(dot);
+  memoColorDrag = {
+    dot, blockEl,
+    orig: blockEl ? blockEl.dataset.color : null,
+    startX: e.clientX, startY: e.clientY, moved: false,
+  };
+  try { dot.setPointerCapture(e.pointerId); } catch(_) {}
+});
+
+document.addEventListener('pointermove', e => {
+  if (!memoColorDrag) return;
+  const d = memoColorDrag;
+  if (!d.moved) {
+    if (Math.abs(e.clientX - d.startX) + Math.abs(e.clientY - d.startY) < 4) return;
+    d.moved = true;
+    document.body.classList.add('dragging');
+  }
+  e.preventDefault();
+  const col = swatchColorAt(e.clientX, e.clientY);
+  hotSwatch(col);
+  applyMemoColor(d.blockEl, d.dot, col || d.orig, true);   // 미리보기
+}, { passive: false });
+
+function finishMemoColorDrag(e) {
+  if (!memoColorDrag) return;
+  const d = memoColorDrag;
+  memoColorDrag = null;
+  document.body.classList.remove('dragging');
+  hotSwatch(null);
+  const col = e ? swatchColorAt(e.clientX, e.clientY) : null;
+  if (col) {                       // 색 위에서 놓음 → 확정
+    applyMemoColor(d.blockEl, d.dot, col);
+    persistMemo();
+    closeColorPicker();
+    if (navigator.vibrate) navigator.vibrate(8);
+  } else if (d.moved) {            // 팔레트 밖에서 놓음 → 취소
+    applyMemoColor(d.blockEl, d.dot, d.orig);
+    closeColorPicker();
+  } else {                         // 그냥 눌렀다 뗌 → 팔레트를 열어둔다
+    applyMemoColor(d.blockEl, d.dot, d.orig);
+  }
+}
+document.addEventListener('pointerup', finishMemoColorDrag);
+document.addEventListener('pointercancel', () => finishMemoColorDrag(null));
+
+// 팔레트 바깥을 누르면 닫기 (색 점을 다시 누르는 건 예외 — openColorPicker가 처리)
+document.addEventListener('pointerdown', e => {
+  if (!document.getElementById('memoColorPicker')) return;
+  if (e.target.closest('#memoColorPicker') || e.target.closest('[data-color-btn]')) return;
+  closeColorPicker();
+}, { capture: true });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('memoColorPicker')) {
+    if (memoColorDrag) applyMemoColor(memoColorDrag.blockEl, memoColorDrag.dot, memoColorDrag.orig);
+    memoColorDrag = null;
+    closeColorPicker();
+  }
+});
 
 function setDayView(di) {
   dayView = di;
