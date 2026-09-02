@@ -3277,8 +3277,14 @@ function fbMemoPath(key, di) {
   const uid = currentUser ? currentUser.uid : 'local';
   return `users/${uid}/memos/${key}/d${di}`;
 }
-function fbTplPath(id) { return `templates/${id}`; }
-function fbTplIdxPath() { return 'tpl_index'; }
+function fbTplPath(id) {
+  const uid = currentUser ? currentUser.uid : 'local';
+  return `users/${uid}/templates/${id}`;
+}
+function fbTplIdxPath() {
+  const uid = currentUser ? currentUser.uid : 'local';
+  return `users/${uid}/tpl_index`;
+}
 
 /* ── 주간 데이터 저장 ──────────────────────── */
 function saveWeekData(key, data) {
@@ -3300,21 +3306,43 @@ async function loadWeekData(key) {
   catch(e) { return null; }
 }
 
-/* ── 저장된 모든 주 키 목록 ────────────────── */
-async function getAllSavedKeys() {
-  if (db) try {
-    const snap = await db.ref('weeks').once('value');
+/* ── 주간 데이터 삭제 (Firebase + localStorage 양쪽) ── */
+function deleteWeekData(key) {
+  if (db) db.ref(fbWeekPath(key)).remove().catch(e => console.warn('FB delete error', e));
+  try { localStorage.removeItem(LS_PREFIX + key); } catch(e) {}
+}
+
+/* ── 저장된 모든 주 목록 ────────────────────────
+   키만이 아니라 요약 정보까지 한 번에 반환한다.
+   (Firebase는 사용자별 경로에서 한 번에 읽어옴) */
+async function getAllSavedWeeks() {
+  const summarize = (key, data) => ({
+    key,
+    label:      (data && data.label) || key,
+    savedAt:    (data && data.savedAt) || '',
+    blockCount: (data && Array.isArray(data.blocks)) ? data.blocks.length : 0,
+  });
+
+  if (db && currentUser) try {
+    const uid  = currentUser.uid;
+    const snap = await db.ref(`users/${uid}/weeks`).once('value');
     if (snap.exists()) {
-      return Object.keys(snap.val()).sort().reverse();
+      const all = snap.val() || {};
+      return Object.keys(all).sort().reverse().map(k => summarize(k, all[k]));
     }
   } catch(e) { console.warn('FB keys error', e); }
+
   // 폴백: localStorage
   const keys = [];
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
     if (k && k.startsWith(LS_PREFIX)) keys.push(k.slice(LS_PREFIX.length));
   }
-  return keys.sort().reverse();
+  return keys.sort().reverse().map(k => {
+    let data = null;
+    try { const r = localStorage.getItem(LS_PREFIX + k); data = r ? JSON.parse(r) : null; } catch(e) {}
+    return summarize(k, data);
+  });
 }
 
 /* ── Auto-save ───────────────────────────────── */
@@ -3445,32 +3473,52 @@ async function openArchive() {
   const body = document.getElementById('archiveBody');
   body.innerHTML = '<div class="arc-empty">불러오는 중...</div>';
   document.getElementById('archiveOverlay').classList.add('show');
-  const keys = await getAllSavedKeys();
-  if (keys.length === 0) {
+
+  const weeks = await getAllSavedWeeks();
+  body.innerHTML = '';
+  if (weeks.length === 0) {
     body.innerHTML = '<div class="arc-empty">저장된 기록이 없어요.<br>현재 주를 저장해 보세요!</div>';
-  } else {
-    keys.forEach(key => {
-      const data = loadWeekData(key); if (!data) return;
-      const savedAt = data.savedAt ? new Date(data.savedAt).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
-      const blockCount = data.blocks ? data.blocks.length : 0;
-      const item = document.createElement('div'); item.className = 'arc-item';
-      item.innerHTML = `
-        <div class="arc-item-info">
-          <div class="arc-item-week">${data.label || key}</div>
-          <div class="arc-item-meta">블록 ${blockCount}개 &nbsp;·&nbsp; 저장 ${savedAt}</div>
-        </div>
-        <button class="arc-item-load" data-key="${key}">불러오기</button>
-        <button class="arc-item-del"  data-key="${key}" title="삭제">🗑</button>`;
-      body.appendChild(item);
-    });
-    body.addEventListener('click', e => {
-      const lb = e.target.closest('.arc-item-load');
-      const db = e.target.closest('.arc-item-del');
-      if (lb) { loadWeek(lb.dataset.key); document.getElementById('archiveOverlay').classList.remove('show'); showToast('📂 불러왔어요'); }
-      if (db && confirm('이 기록을 삭제할까요?')) { localStorage.removeItem(LS_PREFIX + db.dataset.key); openArchive(); showToast('🗑 삭제했어요'); }
-    });
+    return;
   }
+  weeks.forEach(w => {
+    const savedAt = w.savedAt
+      ? new Date(w.savedAt).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+      : '—';
+    const item = document.createElement('div'); item.className = 'arc-item';
+    item.innerHTML = `
+      <div class="arc-item-info">
+        <div class="arc-item-week">${w.label}</div>
+        <div class="arc-item-meta">블록 ${w.blockCount}개 &nbsp;·&nbsp; 저장 ${savedAt}</div>
+      </div>
+      <button class="arc-item-load" data-key="${w.key}">불러오기</button>
+      <button class="arc-item-del"  data-key="${w.key}" title="삭제">🗑</button>`;
+    body.appendChild(item);
+  });
 }
+
+/* 클릭 위임 — 리스너는 최초 1회만 등록 (열 때마다 누적되지 않도록) */
+document.getElementById('archiveBody').addEventListener('click', e => {
+  const loadBtn = e.target.closest('.arc-item-load');
+  if (loadBtn) {
+    const key = loadBtn.dataset.key;
+    document.getElementById('archiveOverlay').classList.remove('show');
+    // 해당 주로 화면을 이동시킨 뒤 불러오기 (현재 주 데이터를 덮어쓰지 않도록)
+    const m = key.match(/^week_(\d{4})(\d{2})(\d{2})$/);
+    if (m) {
+      weekOffset = offsetFromDate(new Date(+m[1], +m[2] - 1, +m[3]));
+      updateWeekTag(); refreshDayHeaders();
+      attachFirebaseListener(key);
+    }
+    loadWeek(key);
+    return;
+  }
+  const delBtn = e.target.closest('.arc-item-del');
+  if (delBtn && confirm('이 기록을 삭제할까요?')) {
+    deleteWeekData(delBtn.dataset.key);
+    openArchive();
+    showToast('🗑 삭제했어요');
+  }
+});
 
 /* ── Toast ──────────────────────────────────── */
 let toastTimer = null;
@@ -3523,6 +3571,37 @@ function deleteTpl(id) {
     const idx = getTplIndex().filter(x => x.id !== id);
     saveTplIndex(idx);
   } catch(e) {}
+}
+
+/* 클라우드 → 로컬 미러링
+   템플릿 읽기는 localStorage 기준이므로, 목록을 그리기 전에
+   Firebase의 템플릿을 내려받아 localStorage에 반영한다.
+   오프라인에서 만든 로컬 전용 템플릿은 지우지 않고 병합한다. */
+async function syncTplFromCloud() {
+  if (!db || !currentUser) return;
+  try {
+    const [idxSnap, dataSnap] = await Promise.all([
+      db.ref(fbTplIdxPath()).once('value'),
+      db.ref(`users/${currentUser.uid}/templates`).once('value'),
+    ]);
+
+    // 템플릿 본문 미러링
+    const cloudData = dataSnap.exists() ? (dataSnap.val() || {}) : {};
+    Object.entries(cloudData).forEach(([id, d]) => {
+      if (d) try { localStorage.setItem(TPL_PREFIX + id, JSON.stringify(d)); } catch(e) {}
+    });
+
+    // 목록 병합 (Firebase는 배열을 객체로 돌려줄 수 있음)
+    const raw = idxSnap.val();
+    const cloudIdx = Array.isArray(raw) ? raw.filter(Boolean)
+                   : raw ? Object.values(raw).filter(Boolean) : [];
+    const merged = [...cloudIdx];
+    const seen = new Set(cloudIdx.map(x => x.id));
+    getTplIndex().forEach(x => {
+      if (x && x.id && !seen.has(x.id)) { merged.push(x); seen.add(x.id); }
+    });
+    try { localStorage.setItem(TPL_IDX_KEY, JSON.stringify(merged)); } catch(e) {}
+  } catch(e) { console.warn('FB template sync error', e); }
 }
 
 /* summary: count blocks per category */
@@ -3590,9 +3669,16 @@ function renameTpl(id, newName) {
 }
 
 /* Render template list */
-function renderTplList() {
+// 항목별 적용 모드 ('replace' | 'merge') — 렌더와 클릭 핸들러가 공유
+const tplApplyModes = {};
+
+async function renderTplList() {
   const body = document.getElementById('tplBody');
+  body.innerHTML = '<div class="tpl-empty">불러오는 중...</div>';
+  await syncTplFromCloud();
+
   body.innerHTML = '';
+  Object.keys(tplApplyModes).forEach(k => delete tplApplyModes[k]);
   const idx = getTplIndex();
 
   if (idx.length === 0) {
@@ -3605,11 +3691,8 @@ function renderTplList() {
     return;
   }
 
-  // per-item apply mode state
-  const applyModes = {};
-
   idx.slice().reverse().forEach(meta => {
-    applyModes[meta.id] = 'replace';
+    tplApplyModes[meta.id] = 'replace';
     const data = loadTplData(meta.id);
     const summary = data ? tplSummary(data.blocks) : [];
     const savedDate = new Date(meta.savedAt).toLocaleDateString('ko-KR', {month:'2-digit',day:'2-digit'});
@@ -3643,14 +3726,15 @@ function renderTplList() {
       </div>`;
     body.appendChild(item);
   });
+}
 
-  /* event delegation */
-  body.addEventListener('click', e => {
+/* event delegation — 리스너는 최초 1회만 등록 (렌더마다 누적되지 않도록) */
+document.getElementById('tplBody').addEventListener('click', e => {
     // apply
     const applyBtn = e.target.closest('[data-apply]');
     if (applyBtn) {
       const id = applyBtn.dataset.apply;
-      applyTemplate(id, applyModes[id] || 'replace');
+      applyTemplate(id, tplApplyModes[id] || 'replace');
       return;
     }
     // delete
@@ -3668,7 +3752,7 @@ function renderTplList() {
     if (modeBtn) {
       const id   = modeBtn.dataset.id;
       const mode = modeBtn.dataset.mode;
-      applyModes[id] = mode;
+      tplApplyModes[id] = mode;
       const row = document.getElementById('mode_' + id);
       row.querySelectorAll('.tpl-mode-btn').forEach(b => b.classList.toggle('sel', b.dataset.mode === mode));
       return;
@@ -3697,8 +3781,7 @@ function renderTplList() {
       inp.addEventListener('blur',  commit);
       inp.addEventListener('keydown', e => { if (e.key==='Enter') inp.blur(); if (e.key==='Escape') { inp.value=oldName; inp.blur(); } });
     }
-  });
-}
+});
 
 /* Open / close */
 function openTplPanel() {
