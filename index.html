@@ -988,6 +988,28 @@
     display: flex; align-items: center; gap: 6px;
     padding: 7px 10px 5px; border-bottom: 1px solid var(--bg);
   }
+  /* 순서 바꾸기 손잡이 — 제목 입력·본문과 충돌하지 않도록 별도 영역 */
+  .memo-drag-handle {
+    width: 16px; height: 20px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 5px; cursor: grab; color: var(--text-hint);
+    touch-action: none;          /* 모바일에서 패널 스크롤 대신 드래그 */
+    transition: background .12s, color .12s;
+  }
+  .memo-drag-handle::before {
+    content: ''; width: 8px; height: 12px; opacity: .6;
+    background-image: radial-gradient(currentColor 1px, transparent 1.1px);
+    background-size: 4px 4px;
+  }
+  .memo-drag-handle:hover { background: var(--surface-muted); color: var(--accent); }
+  .memo-drag-handle:hover::before { opacity: 1; }
+  .memo-drag-handle:active { cursor: grabbing; }
+  .memo-block.mb-dragging {
+    border-color: var(--accent);
+    box-shadow: 0 8px 20px rgba(15,23,42,.18);
+    opacity: .92;
+  }
+  .memo-block.mb-dragging .memo-drag-handle { cursor: grabbing; color: var(--accent); }
   .memo-block-color {
     width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; cursor: pointer;
     border: 1.5px solid rgba(0,0,0,.12);
@@ -1429,6 +1451,9 @@
     .memo-panel.show {
       display: flex !important;   /* 열릴 때만 표시 */
     }
+
+    /* 순서 바꾸기 손잡이: 그립 모양은 그대로, 터치 영역만 넓힌다 */
+    .memo-drag-handle { width: 30px; height: 32px; margin-left: -4px; }
 
     /* 일간 모드: schedule wrap 전체 폭 */
     .day-layout { flex-direction: column; }
@@ -3715,6 +3740,7 @@ function createMemoBlockEl(data) {
 
   el.innerHTML = `
     <div class="memo-block-header">
+      <div class="memo-drag-handle" data-drag="${id}" title="드래그해서 순서 바꾸기"></div>
       <div class="memo-block-color" style="background:${color}" data-color-btn="${id}"></div>
       <input class="memo-block-title" type="text" placeholder="제목 (선택)" value="${esc(title)}">
       <button class="memo-block-act" data-dup="${id}" title="복제">⎘</button>
@@ -3774,6 +3800,70 @@ function renderMemoEmpty() {
   empty.innerHTML = '<div class="memo-empty-icon">📝</div><div>블록 추가 버튼을 눌러<br>메모를 시작해보세요</div>';
   scroll.appendChild(empty);
 }
+
+/* ── 메모 블록 순서 바꾸기 (드래그) ───────────
+   손잡이(⠿)를 잡고 위아래로 끌면 DOM 순서가 바뀌고,
+   놓는 순간 persistMemo()가 DOM 순서 그대로 저장한다. */
+let memoDrag = null;
+
+document.getElementById('memoScroll').addEventListener('pointerdown', e => {
+  const handle = e.target.closest('[data-drag]');
+  if (!handle) return;
+  const el = handle.closest('.memo-block');
+  if (!el) return;
+  e.preventDefault();
+  const scroll = document.getElementById('memoScroll');
+  memoDrag = { el, handle, scroll, startY: e.clientY, moved: false, pointerId: e.pointerId };
+  handle.setPointerCapture(e.pointerId);
+});
+
+document.addEventListener('pointermove', e => {
+  if (!memoDrag) return;
+  const { el, scroll } = memoDrag;
+  // 4px 이상 움직여야 정렬 시작 (단순 클릭과 구분)
+  if (!memoDrag.moved) {
+    if (Math.abs(e.clientY - memoDrag.startY) < 4) return;
+    memoDrag.moved = true;
+    el.classList.add('mb-dragging');
+    document.body.classList.add('dragging');
+    if (navigator.vibrate) navigator.vibrate(8);
+  }
+  e.preventDefault();
+
+  // 패널 위/아래 끝에서 자동 스크롤
+  const r = scroll.getBoundingClientRect();
+  const EDGE = 48;
+  if      (e.clientY < r.top + EDGE)    scroll.scrollTop -= 10;
+  else if (e.clientY > r.bottom - EDGE) scroll.scrollTop += 10;
+
+  // 포인터가 어느 블록의 위쪽 절반에 있는지 → 그 앞에 끼워넣는다
+  const sibs = [...scroll.querySelectorAll('.memo-block')].filter(x => x !== el);
+  let before = null;
+  for (const s of sibs) {
+    const b = s.getBoundingClientRect();
+    if (e.clientY < b.top + b.height / 2) { before = s; break; }
+  }
+  if (before) {
+    if (el.nextElementSibling !== before) scroll.insertBefore(el, before);
+  } else if (scroll.lastElementChild !== el) {
+    scroll.appendChild(el);
+  }
+}, { passive: false });
+
+function finishMemoDrag() {
+  if (!memoDrag) return;
+  const { el, moved } = memoDrag;
+  memoDrag = null;
+  el.classList.remove('mb-dragging');
+  document.body.classList.remove('dragging');
+  if (moved) {
+    persistMemo();          // DOM 순서 = 저장 순서
+    if (navigator.vibrate) navigator.vibrate(10);
+    showToast('📝 메모 순서를 바꿨어요');
+  }
+}
+document.addEventListener('pointerup', finishMemoDrag);
+document.addEventListener('pointercancel', finishMemoDrag);
 
 function initMemoPanel(di) {
   memoDay = di;
@@ -4798,12 +4888,16 @@ function initMobileView() {
 
 // 화면 크기 변경 대응
 window.addEventListener('resize', () => {
+  const panel = document.getElementById('memoPanel');
+  const btn   = document.getElementById('btnMemoToggle');
   if (!isMobile()) {
-    // PC로 전환: 주간 모드로 복귀
-    if (viewMode === 'day') {
-      // 유지 (사용자가 선택한 것 존중)
-    }
-    document.getElementById('memoPanel').classList.remove('show');
+    // PC: 일간 보기면 메모 패널은 항상 보인다.
+    // (예전에는 무조건 닫아버려서, 창 크기만 바꿔도 메모가 사라졌다)
+    panel.classList.toggle('show', viewMode === 'day');
+    if (btn) btn.style.display = 'none';
+  } else if (btn) {
+    // 모바일: 일간 보기에서만 메모 토글 버튼 노출
+    btn.style.display = (viewMode === 'day') ? 'flex' : 'none';
   }
 });
 

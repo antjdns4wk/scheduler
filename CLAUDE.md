@@ -46,6 +46,10 @@
 
 메모 블록 = `{ id, color, title, body, ts }` (일자별 배열)
 
+**메모의 순서는 배열 순서이고, 배열은 DOM 순서에서 만들어진다.**
+`persistMemo()`가 `#memoScroll` 안의 `.memo-block`을 위에서 아래로 훑어 저장하므로,
+순서를 바꾸려면 DOM 노드를 옮긴 뒤 `persistMemo()`만 부르면 된다 (드래그 정렬이 이 방식).
+
 ## 좌표계 규칙 (가장 헷갈리는 부분)
 
 | 단위 | 이름 | 값 |
@@ -113,7 +117,7 @@ users/{uid}/recurring             매주 반복 정의
 | 밸런스 바 | `updateRtLeg`, `applyGroupFilter`, `franklinSection` |
 | 통계 | `openStats(dayIdx)`, `openWeekStats`, `openMonthStats(y, m)` |
 | 저장/로드 | `autoSave`, `saveWeekData`, `loadWeekData`, `loadAllWeeks`, `loadWeek`, `attachFirebaseListener` |
-| 메모 | `initMemoPanel`, `addMemoBlock`, `persistMemo`, `moveMemoToNextDay` |
+| 메모 | `initMemoPanel`, `addMemoBlock`, `persistMemo`, `moveMemoToNextDay`, `finishMemoDrag` |
 | 템플릿 | `saveTemplate`, `applyTemplate`, `renderTplList` (전부 async) |
 | 타이머 | `startTimer`, `commitTimer`, `updateLiveTimerBlock` |
 | 반복 | `toggleRecurring`, `applyRecurringToWeek`, `loadRecurringFromCloud` |
@@ -177,6 +181,7 @@ python -m http.server 8971 --bind 127.0.0.1
 
 체크리스트:
 - 블록 생성(클릭/드래그) → 이동 → 리사이즈 → Alt 복사 → 삭제
+- 일간 보기 메모: 손잡이로 순서 바꾸기 → 새로고침 후 순서 유지 · 창 크기 변경 후에도 패널 유지
 - 주간 ↔ 일간 전환, 트랙 간 이동, 3-5-7-9 밸런스 바 스코프 변화
 - 설정에서 시간 범위 변경 후 블록 위치·겹침
 - 아카이브에서 지난 주 불러오기 → 편집 → 현재 주 데이터가 멀쩡한지
