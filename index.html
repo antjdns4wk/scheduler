@@ -935,6 +935,9 @@
   }
 
   /* memo header */
+  /* 모바일 바텀시트 손잡이 (데스크톱에서는 숨김) */
+  .memo-sheet-grip { display: none; }
+
   .memo-head {
     display: flex; align-items: center; gap: 10px;
     padding: 9px 14px 8px;
@@ -1459,7 +1462,9 @@
     .memo-panel {
       position: fixed !important;
       bottom: 0; left: 0; right: 0;
-      height: 50vh;
+      /* 고정 50vh였다. 메모를 열면 하루가 늘 정확히 반으로 잘렸다.
+         실제 높이는 JS가 인라인으로 넣는다 (30/60/90vh 스냅). */
+      height: 60vh;
       border-left: none;
       border-top: 1.5px solid var(--border);
       border-radius: 16px 16px 0 0;
@@ -1468,8 +1473,23 @@
       flex-direction: column;
       flex: none !important;
       width: 100% !important;
-      transition: transform .25s ease;
+      /* height는 전환하지 않는다 — 스크롤 목록을 품은 패널의 높이를
+         애니메이션하면 매 프레임 레이아웃이 돌아 저사양 기기에서 끊긴다.
+         드래그 중에는 이미 연속적으로 따라오므로 놓을 때 즉시 붙인다. */
+      box-shadow: 0 -6px 24px rgba(15,23,42,.14);
     }
+    .memo-sheet-grip {
+      display: flex; align-items: center; justify-content: center;
+      height: 20px; flex-shrink: 0; cursor: grab;
+      touch-action: none; background: var(--surface);
+      border-radius: 16px 16px 0 0;
+    }
+    .memo-sheet-grip::before {
+      content: ''; width: 38px; height: 4px; border-radius: 2px;
+      background: var(--border-hr); transition: background .12s;
+    }
+    .memo-sheet-grip:active { cursor: grabbing; }
+    .memo-panel.sheet-dragging .memo-sheet-grip::before { background: var(--accent); }
     .memo-panel.show {
       display: flex !important;   /* 열릴 때만 표시 */
     }
@@ -1780,6 +1800,7 @@
     </div>
     <!-- memo side (day-view only) -->
     <div class="memo-panel" id="memoPanel">
+      <div class="memo-sheet-grip" id="memoSheetGrip" title="끌어서 높이 조절 · 눌러서 단계 전환"></div>
       <div class="memo-head">
         <span class="memo-head-title">📝 메모</span>
         <span class="memo-head-day" id="memoHeadDay"></span>
@@ -5033,6 +5054,71 @@ document.getElementById('btnMemoToggle').addEventListener('click', () => {
   btn.textContent = isOpen ? '✕ 닫기' : '📝 메모';
 });
 
+/* ── 모바일 메모 바텀시트 높이 ─────────────────
+   30 / 60 / 90vh 세 단계. 손잡이를 끌면 자유롭게, 놓으면 가장 가까운
+   단계로 붙는다. 그냥 누르면 다음 단계로 넘어간다. 마지막 높이는 기억한다. */
+const SHEET_KEY = 'memo_sheet_h_v1';
+const SHEET_SNAPS = [30, 60, 90];
+let sheetH = 60;
+try {
+  const v = parseInt(localStorage.getItem(SHEET_KEY), 10);
+  if (SHEET_SNAPS.includes(v)) sheetH = v;
+} catch(e) {}
+
+// 데스크톱에서는 사이드 패널이므로 인라인 높이를 걷어낸다
+function syncSheetHeight() {
+  const panel = document.getElementById('memoPanel');
+  if (!panel) return;
+  panel.style.height = isMobile() ? (sheetH + 'vh') : '';
+}
+function applySheetHeight(vh) {
+  sheetH = vh;
+  syncSheetHeight();
+  try { localStorage.setItem(SHEET_KEY, String(vh)); } catch(e) {}
+}
+syncSheetHeight();
+
+let sheetDrag = null;
+document.getElementById('memoSheetGrip').addEventListener('pointerdown', e => {
+  if (!isMobile()) return;
+  e.preventDefault();
+  const panel = document.getElementById('memoPanel');
+  // offsetHeight = 레이아웃 픽셀. getBoundingClientRect는 조상 transform에 휘둘린다
+  sheetDrag = { startY: e.clientY, startH: panel.offsetHeight, moved: false };
+  panel.classList.add('sheet-dragging');
+  try { e.currentTarget.setPointerCapture(e.pointerId); } catch(_) {}
+});
+
+document.addEventListener('pointermove', e => {
+  if (!sheetDrag) return;
+  if (!sheetDrag.moved) {
+    if (Math.abs(e.clientY - sheetDrag.startY) < 4) return;
+    sheetDrag.moved = true;
+  }
+  e.preventDefault();
+  const min = window.innerHeight * 0.18, max = window.innerHeight * 0.94;
+  const h = Math.max(min, Math.min(max, sheetDrag.startH - (e.clientY - sheetDrag.startY)));
+  document.getElementById('memoPanel').style.height = h + 'px';
+}, { passive: false });
+
+function finishSheetDrag() {
+  if (!sheetDrag) return;
+  const moved = sheetDrag.moved;
+  sheetDrag = null;
+  const panel = document.getElementById('memoPanel');
+  panel.classList.remove('sheet-dragging');
+  if (!moved) {   // 탭 = 다음 단계로
+    applySheetHeight(SHEET_SNAPS[(SHEET_SNAPS.indexOf(sheetH) + 1) % SHEET_SNAPS.length]);
+    return;
+  }
+  const cur = panel.offsetHeight / window.innerHeight * 100;
+  const snap = SHEET_SNAPS.reduce((a, b) => Math.abs(b - cur) < Math.abs(a - cur) ? b : a);
+  applySheetHeight(snap);
+  if (navigator.vibrate) navigator.vibrate(8);
+}
+document.addEventListener('pointerup', finishSheetDrag);
+document.addEventListener('pointercancel', finishSheetDrag);
+
 // 모바일에서 앱 시작 시 일간 모드로
 function initMobileView() {
   if (isMobile()) {
@@ -5045,6 +5131,7 @@ function initMobileView() {
 window.addEventListener('resize', () => {
   const panel = document.getElementById('memoPanel');
   const btn   = document.getElementById('btnMemoToggle');
+  syncSheetHeight();
   if (!isMobile()) {
     // PC: 일간 보기면 메모 패널은 항상 보인다.
     // (예전에는 무조건 닫아버려서, 창 크기만 바꿔도 메모가 사라졌다)
