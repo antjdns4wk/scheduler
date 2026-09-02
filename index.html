@@ -253,7 +253,7 @@
   .bal-g-key i { font-style: normal; }
   .bal-g-key .k-short { display: none; }
   .bal-g-num {
-    font-size: 10.5px; font-weight: 700; color: var(--text-sub);
+    font-size: 12px; font-weight: 700; color: var(--text-sub);
     font-variant-numeric: tabular-nums; white-space: nowrap;
   }
   .bal-g-num i { font-style: normal; font-weight: 600; color: var(--text-hint); }
@@ -1369,7 +1369,7 @@
     .bal-g-key { font-size: 10px; }
     .bal-g-key .k-full  { display: none; }
     .bal-g-key .k-short { display: inline; }
-    .bal-g-num { font-size: 10.5px; }
+    .bal-g-num { font-size: 11px; }
     .bal-g-bar { height: 4px; }
     .bal-total { display: none; }
     /* 가로 스크롤 힌트 */
@@ -5215,6 +5215,8 @@ document.addEventListener('keydown', e => {
     showToast('🗓 주간 보기');
   } else if (key === 'd') {
     e.preventDefault();
+    // 주간에서 넘어올 때는 "일간" 버튼과 똑같이 오늘로 간다
+    if (viewMode !== 'day') dayView = todayIdx;
     switchView('day');
     showToast('📆 일간 보기');
   } else if (e.key === 'ArrowLeft') {
