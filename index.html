@@ -194,6 +194,10 @@
   }
   .more-item:hover { background: var(--surface-muted); }
   .more-item .mi-icon { font-size: 15px; width: 20px; text-align: center; }
+  .more-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    color: var(--text-hint); padding: 6px 12px 3px; text-transform: uppercase;
+  }
   .more-divider { height: 1px; background: var(--border); margin: 5px 8px; }
   /* ── 3-5-7-9 밸런스 바 ───────────────────────── */
   .cat-row {
@@ -465,11 +469,17 @@
     border: 1.5px solid var(--blk-accent, #888); background: var(--surface);
     cursor: pointer; display: none; align-items: center; justify-content: center;
     font-size: 10px; color: var(--blk-accent, #888); z-index: 40; padding: 0; line-height: 1;
+    opacity: .5; transition: opacity .12s;
   }
-  .blk:hover .blk-check, .blk.active .blk-check { display: flex; }
-  .blk.done .blk-check { display: flex; background: var(--blk-accent, #888); color: #fff; }
-  .blk.done .blk-lbl { padding-left: 22px; }
-  .blk:hover .blk-lbl, .blk.active .blk-lbl { padding-left: 22px; right: 96px; }
+  /* 완료 체크는 가장 자주 쓰는 동작이라 항상 보인다 (호버하면 또렷해짐) */
+  .blk .blk-check { display: flex; }
+  .blk:hover .blk-check, .blk.active .blk-check { opacity: 1; }
+  .blk.done .blk-check { opacity: 1; background: var(--blk-accent, #888); color: #fff; }
+  .blk-lbl { padding-left: 22px; }
+  .blk:hover .blk-lbl, .blk.active .blk-lbl { right: 96px; }
+  /* 20분 이하 블록은 체크가 라벨을 밀어내지 않도록 조금 작게 */
+  .blk.compact .blk-check { width: 13px; height: 13px; left: 7px; font-size: 9px; }
+  .blk.compact .blk-lbl { padding-left: 18px; }
 
   /* 현재 시각 선 */
   .now-line {
@@ -505,6 +515,19 @@
     box-shadow: 0 1px 5px rgba(20,24,32,.16);
   }
   .blk:hover .blk-acts, .blk.active .blk-acts { display: flex; }
+  /* 호버 전에는 점 세 개만 보여 "여기 뭔가 있다"를 알린다 */
+  .blk-more {
+    position: absolute; top: 50%; right: 5px; transform: translateY(-50%);
+    width: 16px; height: 16px; border-radius: 50%; border: none; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: none; cursor: pointer; z-index: 45;
+    color: var(--blk-accent, #888); opacity: .45;
+    font-size: 12px; font-weight: 700; line-height: 1;
+    font-family: var(--font);
+    transition: opacity .12s, background .12s;
+  }
+  .blk-more:hover { opacity: 1; background: rgba(15,23,42,.08); }
+  .blk:hover .blk-more, .blk.active .blk-more { display: none; }
   .blk-acts > button {
     width: 18px; height: 18px; border-radius: 50%; border: none; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
@@ -1698,6 +1721,7 @@
 
     <!-- 우측: 검색 + 설정 + 프로필 + 더보기 -->
     <div class="hdr-right">
+      <button class="hdr-icon-btn" id="btnStats" title="통계 보기">📊</button>
       <button class="hdr-icon-btn" id="btnTips" title="조작법 보기">?</button>
       <button class="hdr-icon-btn" id="btnSearch" title="날짜 검색">🔍</button>
       <button class="hdr-icon-btn" id="btnSettings" title="설정">⚙️</button>
@@ -1736,11 +1760,13 @@
 
 <!-- 더보기 드롭다운 메뉴 -->
 <div class="more-menu" id="moreMenu">
+  <div class="more-label">보기</div>
   <button class="more-item" id="miWeekStats"><span class="mi-icon">📊</span>주간 통계</button>
   <button class="more-item" id="miMonthStats"><span class="mi-icon">📈</span>월간 통계</button>
   <button class="more-item" id="miTemplate"><span class="mi-icon">📋</span>템플릿</button>
   <button class="more-item" id="miArchive"><span class="mi-icon">📂</span>기록 보기</button>
   <div class="more-divider"></div>
+  <div class="more-label">데이터</div>
   <button class="more-item" id="miExport"><span class="mi-icon">⬇</span>내보내기</button>
   <button class="more-item" id="miImport"><span class="mi-icon">⬆</span>불러오기</button>
 </div>
@@ -2619,7 +2645,17 @@ function renderBlock(b, animate) {
   // hover 액션 바 (복사 · 반복 · 타이머 · 삭제)
   const acts = document.createElement('div'); acts.className = 'blk-acts';
   acts.appendChild(cpy); acts.appendChild(rep); acts.appendChild(play); acts.appendChild(del);
-  el.appendChild(chk); el.appendChild(lbl); el.appendChild(dur); el.appendChild(acts); el.appendChild(resize);
+  // 호버 전에도 보이는 입구 — 액션이 있다는 사실 자체를 알린다
+  const more = document.createElement('button');
+  more.className = 'blk-more'; more.textContent = '⋯';
+  more.title = '복사 · 반복 · 타이머 · 삭제';
+  more.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    document.querySelectorAll('.blk.active').forEach(x => { if (x !== el) x.classList.remove('active'); });
+    el.classList.add('active');
+  });
+  el.appendChild(chk); el.appendChild(lbl); el.appendChild(dur);
+  el.appendChild(more); el.appendChild(acts); el.appendChild(resize);
 
   // ── 더블클릭: 이름 수정 ──
   el.addEventListener('dblclick', e => {
@@ -4237,20 +4273,9 @@ document.getElementById('dateSearchClear').addEventListener('click', () => {
   document.getElementById('dateSearchInput').focus();
 });
 
-// click weekTag → set date input to current monday
-document.getElementById('weekTag').addEventListener('click', () => {
-  const now = new Date();
-  const td = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - (td === 0 ? 6 : td - 1) + weekOffset * 7);
-  const y = monday.getFullYear();
-  const m = String(monday.getMonth()+1).padStart(2,'0');
-  const d = String(monday.getDate()).padStart(2,'0');
-  const inp = document.getElementById('dateSearchInput');
-  inp.value = `${y}-${m}-${d}`;
-  inp.focus();
-  document.getElementById('dateSearchClear').classList.add('show');
-});
+// 헤더 날짜 라벨 클릭 → 검색 모달 (날짜 입력으로 바로 이동)
+// 예전에는 숨겨진 date input에 값만 채워 넣어 화면에 아무 일도 일어나지 않았다.
+document.getElementById('weekTag').addEventListener('click', () => openSearch());
 
 function refreshDayHeaders() {
   const hdrs = document.getElementById('dhdrs');
@@ -5094,6 +5119,13 @@ async function navigateNext() {
   await shiftWeek(1);
   if (viewMode === 'day') setDayView(0);   // 일요일에서 더 가면 다음 주 월요일
 }
+
+// 통계 버튼 → 현재 보고 있는 범위의 통계를 연다
+// (일간이면 그 날, 주간이면 그 주 — 매번 어느 통계인지 고르게 하지 않는다)
+document.getElementById('btnStats').addEventListener('click', () => {
+  if (viewMode === 'day') openStats(dayView);
+  else openWeekStats();
+});
 
 // 검색 버튼 → 검색 모달 (라벨 검색 + 날짜 이동)
 document.getElementById('btnSearch').addEventListener('click', openSearch);
