@@ -106,7 +106,8 @@ users/{uid}/recurring             매주 반복 정의
 - **`fbReady()`로 가드할 것** — `db`만 확인하면 로그인 전에도 `users/local/...`로 요청이 나가
   전부 `PERMISSION_DENIED`로 실패하며 헛된 왕복이 생긴다
 - localStorage 키: `scheduler_`(주간) · `memo_blocks_`(메모) · `sched_tpl_`·`sched_tpl_index`(템플릿) ·
-  `app_settings_v2` · `user_categories_v4` · `recurring_defs_v1` · `live_timer_v1` · `notified_YYYYMMDD`
+  `app_settings_v2` · `user_categories_v4` · `recurring_defs_v1` · `live_timer_v1` · `notified_YYYYMMDD` ·
+  `tip_seen_v1`(조작법 노출 횟수) · `memo_sheet_h_v1`(모바일 시트 높이)
 - 실시간 리스너(`attachFirebaseListener`)가 다른 기기의 변경을 반영. 단 **드래그/리사이즈 중,
   입력창 열림, 내가 5초 내 저장** 시에는 무시한다 (중복 렌더 방지)
 - 여러 주를 훑는 화면(아카이브·검색·월간통계)은 **`loadAllWeeks()`를 쓸 것.**
@@ -117,16 +118,19 @@ users/{uid}/recurring             매주 반복 정의
 | 기능 | 함수 |
 |---|---|
 | 그리드/축 | `buildAxis`, `buildGrid`, `rebuildGridSize`, `syncAxisSpacer`, `recalcRange` |
+| 날짜 이동 | `navigatePrev`, `navigateNext`, `shiftWeek(delta)`, `goToday`, `updateWeekTag` |
 | 블록 생성 | `attachDragCreate`, `openDragCreateInput`, `handleInp`, `createBlockAt` |
 | 렌더 | `renderBlock`, `startEditLabel` |
 | 충돌 해결 | `resolveSlot` ← **가장 중요**. 실패 시 `null` 반환 |
 | 드래그/리사이즈 | `finishDrag`, `finishResize`, `previewShift`, `startAltCopyDrag`, `duplicateBlock` |
 | 좌표 변환 | `withAnchor`, `normalizeBlock`, `blockRange`, `clockOfMins` |
 | 그룹/카테고리 | `catOf`, `catGroup`, `grpOf`, `groupTarget`, `impliedSleep`, `renderCatChips` |
-| 밸런스 바 | `updateRtLeg`, `applyGroupFilter`, `franklinSection` |
+| 밸런스 바 | `updateRtLeg`, `renderCatStrip`, `applyGroupFilter`, `franklinSection` |
+| 요일 이행률 | `updateDayProgress` |
+| 모바일 시트 | `applySheetHeight`, `syncSheetHeight`, `finishSheetDrag` |
 | 통계 | `openStats(dayIdx)`, `openWeekStats`, `openMonthStats(y, m)` |
 | 저장/로드 | `autoSave`, `saveWeekData`, `loadWeekData`, `loadAllWeeks`, `loadWeek`, `attachFirebaseListener` |
-| 메모 | `initMemoPanel`, `addMemoBlock`, `persistMemo`, `moveMemoToNextDay`, `finishMemoDrag` |
+| 메모 | `initMemoPanel`, `addMemoBlock`, `persistMemo`, `moveMemoToNextDay`, `finishMemoDrag`, `applyMemoColor` |
 | 템플릿 | `saveTemplate`, `applyTemplate`, `renderTplList` (전부 async) |
 | 타이머 | `startTimer`, `commitTimer`, `updateLiveTimerBlock` |
 | 반복 | `toggleRecurring`, `applyRecurringToWeek`, `loadRecurringFromCloud` |
@@ -157,7 +161,19 @@ users/{uid}/recurring             매주 반복 정의
 
 `T` 오늘 · `W` 주간 · `D` 일간 · `←`/`→` 이전/다음
 `Alt`+드래그 = 블록 복사 · 더블클릭 = 이름 수정 · 길게 누르기 = 이름 수정(모바일)
-블록 호버 액션: `⧉` 복사 · `↻` 매주 반복 · `▶` 타이머 시작 · `×` 삭제
+
+**날짜 이동 수단은 헤더 화살표와 키보드 `←`/`→` 둘뿐이다.**
+둘 다 `navigatePrev()` / `navigateNext()`를 거치고, 뷰에 따라 하루 또는 한 주를 옮긴다.
+하단 day-nav 바는 제거됐다 (같은 동작이 뷰마다 화면 반대편에 있었다).
+
+헤더: `📊` 현재 뷰의 통계 · `?` 조작법 토글 · `🔍` 검색 · `⚙️` 설정 · `⋯` 더보기
+헤더 가운데 라벨은 주간이면 주 범위, 일간이면 날짜. 클릭하면 검색 모달이 열린다.
+
+블록: 완료 체크(`✓`)는 항상 표시. `⋯`를 누르거나 호버하면
+`⧉` 복사 · `↻` 매주 반복 · `▶` 타이머 · `×` 삭제가 펼쳐진다.
+
+메모: 손잡이(`⠿`)로 순서 변경 · 색 점을 누른 채 끌어서 색 변경 ·
+모바일은 상단 손잡이로 시트 높이 30/60/90vh 조절(탭하면 순환).
 
 ## 수정할 때 주의사항
 
@@ -179,6 +195,18 @@ users/{uid}/recurring             매주 반복 정의
 11. **사용자 입력을 `innerHTML` 템플릿에 넣을 때는 `esc()`** — 블록 라벨, 템플릿 이름, 카테고리 키,
     메모 제목/본문이 대상이다
 12. **삭제는 Firebase와 localStorage 양쪽 모두** 처리할 것
+13. **`updateRtLeg()`는 밸런스 바만 그리지 않는다** — `renderCatStrip()`(카테고리 띠)과
+    `updateDayProgress()`(요일 이행률 막대)까지 같이 부른다. 블록이 바뀌는 모든 경로가
+    이 함수를 지나므로, 화면 갱신을 추가할 때는 여기에 얹으면 된다
+14. **요일 헤더 높이가 바뀌면 `syncAxisSpacer()`** — 이행률 막대가 생기고 사라질 때
+    시간축 상단 여백이 어긋난다 (`updateDayProgress`가 개수 변화를 감지해 호출한다)
+15. **모바일 메모 시트 높이는 인라인 `style.height`** — CSS 변수로 `height`를 물리면
+    일부 환경에서 재계산이 늦다. 데스크톱에서는 사이드 패널이므로 `syncSheetHeight()`가
+    인라인 값을 걷어낸다. 창 크기 변경 시에도 다시 부를 것
+16. **높이를 transition으로 애니메이션하지 말 것** — 스크롤 목록을 품은 패널은
+    매 프레임 레이아웃이 돌아 저사양 기기에서 끊긴다
+17. **요소 크기는 `offsetWidth/offsetHeight`로 잴 것** — `getBoundingClientRect()`는
+    조상 `transform`에 휘둘려 스냅·히트테스트 계산이 틀어진다
 
 ## 테스트
 
@@ -191,6 +219,12 @@ python -m http.server 8971 --bind 127.0.0.1
 체크리스트:
 - 블록 생성(클릭/드래그) → 이동 → 리사이즈 → Alt 복사 → 삭제
 - 일간 보기 메모: 손잡이로 순서 바꾸기 → 새로고침 후 순서 유지 · 창 크기 변경 후에도 패널 유지
+- 메모 색: 점을 누른 채 색 위로 끌어 놓기 / 눌렀다 떼고 클릭 — 두 방식 모두
+- 날짜 이동: 헤더 화살표와 키보드 `←`/`→`가 같은 결과를 내는지, 주 경계(월↔일)에서도
+- 조작법 `?` 토글, 헤더 `📊`가 뷰에 맞는 통계를 여는지
+- 주간 보기 요일 헤더의 이행률 막대 (미래 날짜·실제 기록 없는 주에는 안 그려져야 함)
+- 밸런스 바 그룹 클릭 → 카테고리 띠 펼침 → 카테고리 클릭 시 2단계 필터
+- 모바일 메모 시트: 손잡이 끌기/탭으로 30·60·90vh, 새로고침 후 마지막 높이 유지
 - 주간 ↔ 일간 전환, 트랙 간 이동, 3-5-7-9 밸런스 바 스코프 변화
 - 설정에서 시간 범위 변경 후 블록 위치·겹침
 - 아카이브에서 지난 주 불러오기 → 편집 → 현재 주 데이터가 멀쩡한지
