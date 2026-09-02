@@ -2082,7 +2082,7 @@ function renderCatChips() {
         ${gd ? `<span class="lg-group-hr">${gd.hours}h</span><span class="lg-group-desc">${gd.desc}</span>` : ''}
       </div>
       <div class="lg-chips">${cats.map(c =>
-        `<span class="cat-chip" style="background:${c.bg || hexToBg(c.color)};color:${c.color}"><span class="cat-chip-dot" style="background:${c.color}"></span>${c.key}</span>`
+        `<span class="cat-chip" style="background:${c.bg || hexToBg(c.color)};color:${c.color}"><span class="cat-chip-dot" style="background:${c.color}"></span>${esc(c.key)}</span>`
       ).join('')}</div>
     </div>`;
   }).join('');
@@ -2124,6 +2124,12 @@ function palBg(lbl) { return catBg(catOf(lbl)); }
 // 라벨 → 3-5-7-9 그룹 키 / 그룹 색
 function grpOf(lbl)    { return catGroup(catOf(lbl)); }
 function grpColorOf(lbl) { return groupColor(grpOf(lbl)); }
+// 사용자가 입력한 문자열(블록 라벨·템플릿 이름·카테고리 키 등)을
+// innerHTML 템플릿에 넣기 전 이스케이프
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g,
+    c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
+}
 function fmtTime(mins) {
   if (mins === 0) return '0분';
   if (mins < 60) return mins + '분';
@@ -2789,9 +2795,10 @@ document.addEventListener('pointermove', e => {
   const exactH = (newMins / MIN_UNIT) * PX - 1;
   resizing.el.style.height = Math.max(exactH, 4) + 'px';
   resizing.previewMins = newMins;
-  // 라벨 업데이트
-  const lbl = resizing.el.querySelector('.blk-lbl');
-  if (lbl) lbl.textContent = (resizing.block.rid ? '🔁 ' : '') + resizing.block.label + ' ' + blockRange(resizing.block.si, newMins);
+  // 라벨 업데이트 — .blk-lbl은 .blk-name / .blk-time 두 span을 갖는다.
+  // textContent를 통째로 덮으면 두 span이 사라져 서식이 깨지므로 시간만 바꾼다.
+  const timeEl = resizing.el.querySelector('.blk-time');
+  if (timeEl) timeEl.textContent = blockRange(resizing.block.si, newMins);
 }, { passive: false });
 
 function finishResize() {
@@ -3295,7 +3302,7 @@ function openStats(dayIdx) {
       const pm = tally[cat] || 0, am2 = actTally[cat] || 0, dv = am2 - pm;
       const row = document.createElement('div'); row.className = 'pa-row';
       row.innerHTML = `
-        <div class="pa-name"><span class="pa-dot" style="background:${catColor(cat)}"></span>${cat}</div>
+        <div class="pa-name"><span class="pa-dot" style="background:${catColor(cat)}"></span>${esc(cat)}</div>
         <div class="pa-val">계획 ${fmtTime(pm)}</div>
         <div class="pa-val">실제 ${fmtTime(am2)}</div>
         <div class="pa-diff" style="color:${dv === 0 ? 'var(--text-hint)' : dv > 0 ? '#16A34A' : '#DC2626'}">${dv === 0 ? '—' : (dv > 0 ? '+' : '−') + fmtTime(Math.abs(dv))}</div>`;
@@ -3327,7 +3334,7 @@ function openStats(dayIdx) {
       row.className = 'stat-row';
       row.innerHTML = `
         <div class="stat-color" style="background:${col}"></div>
-        <div class="stat-name">${cat}</div>
+        <div class="stat-name">${esc(cat)}</div>
         <div class="stat-bar-wrap">
           <div class="stat-bar-fill" style="width:${pct}%;background:${col};"></div>
         </div>
@@ -3655,7 +3662,7 @@ function memoKey(dayIdx) {
 }
 async function loadMemoBlocks(dayIdx) {
   const wk = getWeekKey(weekOffset);
-  if (db) try {
+  if (fbReady()) try {
     const snap = await db.ref(fbMemoPath(wk, dayIdx)).once('value');
     if (snap.exists()) return snap.val() || [];
   } catch(e) {}
@@ -3663,7 +3670,7 @@ async function loadMemoBlocks(dayIdx) {
 }
 function saveMemoBlocks(dayIdx, arr) {
   const wk = getWeekKey(weekOffset);
-  if (db) db.ref(fbMemoPath(wk, dayIdx)).set(arr).catch(e => console.warn('memo save error', e));
+  if (fbReady()) db.ref(fbMemoPath(wk, dayIdx)).set(arr).catch(e => console.warn('memo save error', e));
   try { localStorage.setItem(memoKey(dayIdx), JSON.stringify(arr)); } catch(e) {}
 }
 
@@ -3709,12 +3716,12 @@ function createMemoBlockEl(data) {
   el.innerHTML = `
     <div class="memo-block-header">
       <div class="memo-block-color" style="background:${color}" data-color-btn="${id}"></div>
-      <input class="memo-block-title" type="text" placeholder="제목 (선택)" value="${(title||'').replace(/"/g,'&quot;')}">
+      <input class="memo-block-title" type="text" placeholder="제목 (선택)" value="${esc(title)}">
       <button class="memo-block-act" data-dup="${id}" title="복제">⎘</button>
       <button class="memo-block-act" data-next="${id}" title="다음 날로 넘기기">→</button>
       <button class="memo-block-del" data-del="${id}" title="삭제">×</button>
     </div>
-    <textarea class="memo-block-body" placeholder="메모 내용을 입력하세요...">${body||''}</textarea>
+    <textarea class="memo-block-body" placeholder="메모 내용을 입력하세요...">${esc(body)}</textarea>
     <div class="memo-block-footer">
       <span class="memo-block-time">${tsLabel}</span>
       <span class="memo-block-saved" id="saved_${id}">✓ 저장됨</span>
@@ -3854,13 +3861,13 @@ async function moveMemoToNextDay(el) {
     // 다음 주 월요일로: weekOffset+1의 day 0에 저장
     const nextWk = getWeekKey(weekOffset + 1);
     let arr = [];
-    if (db) {
+    if (fbReady()) {
       try { const s = await db.ref(fbMemoPath(nextWk, 0)).once('value'); if (s.exists()) arr = s.val()||[]; } catch(e){}
     } else {
       try { arr = JSON.parse(localStorage.getItem(`memo_blocks_${nextWk}_d0`)||'[]'); } catch(e){}
     }
     arr.push(memoData);
-    if (db) db.ref(fbMemoPath(nextWk, 0)).set(arr).catch(()=>{});
+    if (fbReady()) db.ref(fbMemoPath(nextWk, 0)).set(arr).catch(()=>{});
     try { localStorage.setItem(`memo_blocks_${nextWk}_d0`, JSON.stringify(arr)); } catch(e){}
     showToast('➡️ 다음 주 월요일로 넘겼어요');
   } else {
@@ -4192,6 +4199,10 @@ function updateFbStatus() {
 /* ── Firebase 경로 헬퍼 ──────────────────────── */
 const LS_PREFIX = 'scheduler_';  // localStorage 폴백용
 
+// 로그인 전에는 uid가 없어 users/local/... 로 요청이 나가고 전부
+// PERMISSION_DENIED로 실패한다. 읽기마다 헛된 왕복이 생기므로 미리 막는다.
+function fbReady() { return !!(db && currentUser); }
+
 function fbWeekPath(key) {
   const uid = currentUser ? currentUser.uid : 'local';
   return `users/${uid}/weeks/${key}`;
@@ -4206,7 +4217,7 @@ function fbTplIdxPath() { const uid = currentUser ? currentUser.uid : 'local'; r
 /* ── 주간 데이터 저장 ──────────────────────── */
 function saveWeekData(key, data) {
   // Firebase 저장 (비동기, 연결된 경우만)
-  if (db) db.ref(fbWeekPath(key)).set(data).catch(e => console.warn('FB save error', e));
+  if (fbReady()) db.ref(fbWeekPath(key)).set(data).catch(e => console.warn('FB save error', e));
   // localStorage 폴백
   try { localStorage.setItem(LS_PREFIX + key, JSON.stringify(data)); return true; }
   catch(e) { return false; }
@@ -4214,7 +4225,7 @@ function saveWeekData(key, data) {
 
 /* ── 주간 데이터 로드 ──────────────────────── */
 async function loadWeekData(key) {
-  if (db) try {
+  if (fbReady()) try {
     const snap = await db.ref(fbWeekPath(key)).once('value');
     if (snap.exists()) return snap.val();
   } catch(e) { console.warn('FB load error', e); }
@@ -4223,22 +4234,34 @@ async function loadWeekData(key) {
   catch(e) { return null; }
 }
 
-/* ── 저장된 모든 주 키 목록 ────────────────── */
-async function getAllSavedKeys() {
-  if (db) try {
-    const uid = currentUser ? currentUser.uid : 'local';
-    const snap = await db.ref(`users/${uid}/weeks`).once('value');
+/* ── 저장된 모든 주 (본문까지 한 번에) ────────
+   아카이브·검색·월간 통계는 여러 주의 본문을 모두 훑는다.
+   주마다 loadWeekData()를 부르면 Firebase 왕복이 주 수만큼 생기므로
+   users/{uid}/weeks 를 한 번만 읽어 [{key, data}] 로 돌려준다. */
+async function loadAllWeeks() {
+  if (fbReady()) try {
+    const snap = await db.ref(`users/${currentUser.uid}/weeks`).once('value');
     if (snap.exists()) {
-      return Object.keys(snap.val()).sort().reverse();
+      const all = snap.val() || {};
+      return Object.keys(all).sort().reverse().map(k => ({ key: k, data: all[k] }));
     }
-  } catch(e) { console.warn('FB keys error', e); }
+  } catch(e) { console.warn('FB weeks error', e); }
   // 폴백: localStorage
   const keys = [];
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
     if (k && k.startsWith(LS_PREFIX)) keys.push(k.slice(LS_PREFIX.length));
   }
-  return keys.sort().reverse();
+  return keys.sort().reverse().map(k => {
+    let data = null;
+    try { const r = localStorage.getItem(LS_PREFIX + k); data = r ? JSON.parse(r) : null; } catch(e) {}
+    return { key: k, data };
+  });
+}
+
+/* ── 저장된 모든 주 키 목록 ────────────────── */
+async function getAllSavedKeys() {
+  return (await loadAllWeeks()).map(w => w.key);
 }
 
 /* ── Auto-save ───────────────────────────────── */
@@ -4373,19 +4396,18 @@ async function openArchive() {
   const body = document.getElementById('archiveBody');
   body.innerHTML = '<div class="arc-empty">불러오는 중...</div>';
   document.getElementById('archiveOverlay').classList.add('show');
-  const keys = await getAllSavedKeys();
-  if (keys.length === 0) {
+  const weeks = (await loadAllWeeks()).filter(w => w.data);
+  if (weeks.length === 0) {
     body.innerHTML = '<div class="arc-empty">저장된 기록이 없어요.<br>현재 주를 저장해 보세요!</div>';
   } else {
     body.innerHTML = '';
-    for (const key of keys) {
-      const data = await loadWeekData(key); if (!data) continue;
+    for (const { key, data } of weeks) {
       const savedAt = data.savedAt ? new Date(data.savedAt).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
       const blockCount = data.blocks ? data.blocks.length : 0;
       const item = document.createElement('div'); item.className = 'arc-item';
       item.innerHTML = `
         <div class="arc-item-info">
-          <div class="arc-item-week">${data.label || key}</div>
+          <div class="arc-item-week">${esc(data.label || key)}</div>
           <div class="arc-item-meta">블록 ${blockCount}개 &nbsp;·&nbsp; 저장 ${savedAt}</div>
         </div>
         <button class="arc-item-load" data-key="${key}">불러오기</button>
@@ -4397,11 +4419,25 @@ async function openArchive() {
     archiveWired = true;
     body.addEventListener('click', e => {
       const lb = e.target.closest('.arc-item-load');
+      if (lb) {
+        const key = lb.dataset.key;
+        document.getElementById('archiveOverlay').classList.remove('show');
+        // 화면만 바꾸면 안 된다. weekOffset을 그 주로 옮기지 않으면
+        // 이후 autoSave()가 "현재 주" 키에 과거 데이터를 덮어써 버린다.
+        const m = key.match(/^week_(\d{4})(\d{2})(\d{2})$/);
+        if (m) {
+          weekOffset = offsetFromDate(new Date(+m[1], +m[2] - 1, +m[3]));
+          updateWeekTag(); refreshDayHeaders();
+          attachFirebaseListener(key);
+          if (viewMode === 'day') setDayView(dayView);
+        }
+        loadWeek(key);
+        return;
+      }
       const delB = e.target.closest('.arc-item-del');
-      if (lb) { loadWeek(lb.dataset.key); document.getElementById('archiveOverlay').classList.remove('show'); showToast('📂 불러왔어요'); }
       if (delB && confirm('이 기록을 삭제할까요?')) {
         localStorage.removeItem(LS_PREFIX + delB.dataset.key);
-        if (db) db.ref(fbWeekPath(delB.dataset.key)).remove().catch(()=>{});
+        if (fbReady()) db.ref(fbWeekPath(delB.dataset.key)).remove().catch(()=>{});
         openArchive(); showToast('🗑 삭제했어요');
       }
     });
@@ -4445,7 +4481,7 @@ const TPL_PREFIX  = 'sched_tpl_';
 const TPL_IDX_KEY = 'sched_tpl_index';
 
 async function getTplIndex() {
-  if (db) try {
+  if (fbReady()) try {
     const snap = await db.ref(fbTplIdxPath()).once('value');
     if (snap.exists()) {
       const v = snap.val() || [];
@@ -4457,11 +4493,11 @@ async function getTplIndex() {
   catch(e) { return []; }
 }
 function saveTplIndex(idx) {
-  if (db) db.ref(fbTplIdxPath()).set(idx).catch(e=>{});
+  if (fbReady()) db.ref(fbTplIdxPath()).set(idx).catch(e=>{});
   try { localStorage.setItem(TPL_IDX_KEY, JSON.stringify(idx)); } catch(e) {}
 }
 async function loadTplData(id) {
-  if (db) try {
+  if (fbReady()) try {
     const snap = await db.ref(fbTplPath(id)).once('value');
     if (snap.exists()) {
       const v = snap.val();
@@ -4473,11 +4509,11 @@ async function loadTplData(id) {
   catch(e) { return null; }
 }
 function saveTplData(id, data) {
-  if (db) db.ref(fbTplPath(id)).set(data).catch(e=>{});
+  if (fbReady()) db.ref(fbTplPath(id)).set(data).catch(e=>{});
   try { localStorage.setItem(TPL_PREFIX + id, JSON.stringify(data)); } catch(e) {}
 }
 async function deleteTpl(id) {
-  if (db) db.ref(fbTplPath(id)).remove().catch(e=>{});
+  if (fbReady()) db.ref(fbTplPath(id)).remove().catch(e=>{});
   try { localStorage.removeItem(TPL_PREFIX + id); } catch(e) {}
   const idx = (await getTplIndex()).filter(x => x.id !== id);
   saveTplIndex(idx);
@@ -4587,14 +4623,14 @@ async function renderTplList() {
 
     // chip HTML
     const chips = summary.slice(0,4).map(([cat,mins]) =>
-      `<span class="tpl-chip" style="background:${catColor(cat)}">${cat} ${fmtTime(mins)}</span>`
+      `<span class="tpl-chip" style="background:${catColor(cat)}">${esc(cat)} ${fmtTime(mins)}</span>`
     ).join('');
 
     item.innerHTML = `
       <div class="tpl-item-icon">📋</div>
       <div class="tpl-item-info">
         <div class="tpl-item-name">
-          <span class="tpl-name-display">${meta.name}</span>
+          <span class="tpl-name-display">${esc(meta.name)}</span>
           <button class="tpl-btn" style="padding:0 6px;height:22px;font-size:10px;" data-rename="${meta.id}" title="이름 변경">✏️</button>
         </div>
         <div class="tpl-item-meta">블록 ${meta.blockCount}개 &nbsp;·&nbsp; ${savedDate} 저장</div>
@@ -4702,7 +4738,7 @@ let fbListenerRef = null;
 let myLastSaveAt = 0;  // 내가 마지막으로 저장한 시각
 
 function attachFirebaseListener(key) {
-  if (!db) return;
+  if (!fbReady()) return;
   if (fbListenerRef) { fbListenerRef.off(); fbListenerRef = null; }
   fbListenerKey = key;
   fbListenerRef = db.ref(fbWeekPath(key));
@@ -4962,11 +4998,23 @@ function commitTimer() {
     nb.si = r;
     blocks.push(nb); renderBlock(nb, true); updateRtLeg(); autoSave();
   } else {
-    // 다른 주를 보는 중이면 이번 주 데이터에 직접 기록
+    // 다른 주를 보는 중이면 이번 주 데이터에 직접 기록.
+    // 화면에 없는 블록들과도 겹치면 안 되므로 저장 직전에 빈자리를 찾는다.
     const key = getWeekKey(0);
     loadWeekData(key).then(data => {
       const d = data || { key, label: getWeekLabel(0), blocks: [] };
       d.blocks = d.blocks || [];
+      const taken = d.blocks
+        .filter(x => (x.col || 0) === todayIdx && (x.track || 0) === 1 && x.mins)
+        .map(x => {
+          const s = (x.am !== undefined) ? x.am : 5*60 + Math.round(x.si) * MIN_UNIT;
+          return { s, e: s + x.mins };
+        });
+      const fits = a => !taken.some(o => a < o.e && a + mins > o.s);
+      let am = S_HR*60 + si*MIN_UNIT;
+      while (!fits(am) && am + mins <= E_HR*60) am += MIN_UNIT;
+      if (!fits(am)) { showToast('⚠️ 이번 주 실제 트랙에 기록할 공간이 없어요'); return; }
+      nb.si = Math.round((am - S_HR*60) / MIN_UNIT);
       d.blocks.push(withAnchor(nb));
       d.savedAt = new Date().toISOString();
       saveWeekData(key, d);
@@ -5269,13 +5317,36 @@ function applySettings() {
 function applyRange(ns, ne) {
   blocks = blocks.map(withAnchor);
   S_HR = ns; E_HR = ne; recalcRange();
-  blocks = blocks.map(normalizeBlock);
+
+  // normalizeBlock은 새 범위 밖으로 밀린 블록을 경계로 클램프한다.
+  // 그대로 두면 여러 블록이 같은 자리(si=0 등)에 겹쳐 쌓이므로,
+  // 원래 시각 순서대로 다시 자리를 잡아준다.
+  const remapped = blocks.map(normalizeBlock)
+                         .sort((a, b) => (a.am - b.am) || ((a.track || 0) - (b.track || 0)));
+  const placed = [];
+  blocks = placed;   // resolveSlot이 참조하는 전역 배열 = placed (점진적으로 채움)
+  let moved = 0, stuck = 0;
+  remapped.forEach(b => {
+    const want = b.si;
+    const r = resolveSlot(b, b.col, want);
+    if (r === null) { stuck++; placed.push(b); return; }  // 자리가 없어도 블록은 잃지 않는다
+    if (r !== want) moved++;
+    b.si = r;
+    placed.push(b);
+  });
+
   buildAxis(); buildGrid();
   blocks.forEach(b => renderBlock(b));
   switchView(viewMode);
   updateNowLine(); updateLiveTimerBlock(); updateRtLeg();
   requestAnimationFrame(syncAxisSpacer);
   autoSave();
+  if (moved || stuck) {
+    showToast('⏱ 시간 범위 변경 — '
+      + (moved ? `${moved}개 블록 위치를 조정했어요` : '')
+      + (moved && stuck ? ' · ' : '')
+      + (stuck ? `${stuck}개는 빈자리가 없어 겹칠 수 있어요` : ''));
+  }
 }
 document.getElementById('setClose').addEventListener('click', () => document.getElementById('setOverlay').classList.remove('show'));
 document.getElementById('setOverlay').addEventListener('click', e => {
@@ -5302,11 +5373,10 @@ async function runSearch() {
   }
   const box = document.getElementById('srchResults');
   box.innerHTML = '<div class="srch-empty">검색 중...</div>';
-  const keys = (await getAllSavedKeys()).slice(0, 30);   // 최근 30주
+  const weeks = (await loadAllWeeks()).slice(0, 30);   // 최근 30주
   const DAYS_KR = ['월','화','수','목','금','토','일'];
   const results = [];
-  for (const key of keys) {
-    const data = await loadWeekData(key);
+  for (const { key, data } of weeks) {
     if (!data || !data.blocks) continue;
     const ms = key.replace('week_','');
     const monday = new Date(+ms.slice(0,4), +ms.slice(4,6)-1, +ms.slice(6,8));
@@ -5327,7 +5397,7 @@ async function runSearch() {
     item.innerHTML = `
       <span class="pa-dot" style="background:${catColor(catOf(b.label))}"></span>
       <div class="srch-item-info">
-        <div class="srch-item-lbl">${(b.track ? '✅ ' : '📋 ')}${b.label}</div>
+        <div class="srch-item-lbl">${(b.track ? '✅ ' : '📋 ')}${esc(b.label)}</div>
         <div class="srch-item-meta">${date.getFullYear()}.${date.getMonth()+1}.${date.getDate()} (${DAYS_KR[b.col || 0]}) · ${clockOfMins(am)} · ${fmtTime(b.mins)}</div>
       </div>`;
     item.addEventListener('click', () => {
@@ -5363,16 +5433,15 @@ async function openMonthStats(y, m) {
   document.getElementById('mPrev').addEventListener('click', e => { e.stopPropagation(); openMonthStats(m === 0 ? y-1 : y, m === 0 ? 11 : m-1); });
   document.getElementById('mNext').addEventListener('click', e => { e.stopPropagation(); openMonthStats(m === 11 ? y+1 : y, m === 11 ? 0 : m+1); });
 
-  const keys = await getAllSavedKeys();
+  const weeks = await loadAllWeeks();
   const planTally = {}, actTally = {}, dayTotals = {};
   let planTotal = 0, actTotal = 0;
   const mStart = new Date(y, m, 1), mEnd = new Date(y, m+1, 0);
-  for (const key of keys) {
+  for (const { key, data } of weeks) {
     const ms = key.replace('week_','');
     const monday = new Date(+ms.slice(0,4), +ms.slice(4,6)-1, +ms.slice(6,8));
     const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
     if (sunday < mStart || monday > mEnd) continue;
-    const data = await loadWeekData(key);
     if (!data || !data.blocks) continue;
     data.blocks.forEach(b => {
       if (!b.mins) return;
@@ -5413,7 +5482,7 @@ async function openMonthStats(y, m) {
     const a = actTally[cat] || 0;
     const row = document.createElement('div'); row.className = 'pa-row';
     row.innerHTML = `
-      <div class="pa-name"><span class="pa-dot" style="background:${catColor(cat)}"></span>${cat}</div>
+      <div class="pa-name"><span class="pa-dot" style="background:${catColor(cat)}"></span>${esc(cat)}</div>
       <div class="pa-val">계획 ${fmtTime(mins)}</div>
       <div class="pa-val">실제 ${fmtTime(a)}</div>
       <div class="pa-diff" style="color:${mins > 0 && a >= mins ? '#16A34A' : 'var(--text-hint)'}">${mins > 0 ? Math.round(a / mins * 100) + '%' : '—'}</div>`;
