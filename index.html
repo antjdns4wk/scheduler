@@ -200,6 +200,27 @@
   }
   .more-divider { height: 1px; background: var(--border); margin: 5px 8px; }
   /* ── 3-5-7-9 밸런스 바 ───────────────────────── */
+  /* 선택한 그룹의 카테고리 띠 */
+  .cat-strip {
+    display: none; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 6px 16px; border-top: 1px solid var(--border);
+    background: var(--surface-muted);
+  }
+  .cat-strip.show { display: flex; }
+  .cat-strip-lbl {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .06em;
+    color: var(--text-sub); margin-right: 2px;
+  }
+  .cat-strip .cat-chip {
+    border: 1.5px solid transparent; cursor: pointer;
+    font-family: var(--font); transition: border-color .12s, transform .1s;
+  }
+  .cat-strip .cat-chip:hover { transform: translateY(-1px); }
+  .cat-strip .cat-chip.sel { border-color: currentColor; }
+  .cat-strip-hint {
+    font-size: 10.5px; color: var(--text-hint); margin-left: auto; white-space: nowrap;
+  }
+
   .cat-row {
     display: flex; align-items: center; gap: 10px;
     padding: 7px 20px 8px;
@@ -259,38 +280,6 @@
 
   .bal-tail { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .bal-total { font-size: 10.5px; font-weight: 600; color: var(--text-hint); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .lg-btn {
-    height: 26px; padding: 0 10px; border-radius: 7px; cursor: pointer;
-    border: 1px solid var(--border); background: var(--surface);
-    font-size: 11px; font-weight: 600; color: var(--text-sub); font-family: var(--font);
-    transition: border-color .12s, color .12s;
-  }
-  .lg-btn:hover { border-color: var(--accent); color: var(--accent); }
-
-  /* ── 색 범례 팝오버 ── */
-  .cat-legend {
-    position: fixed; right: 18px; z-index: 400; width: 320px;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 14px; box-shadow: var(--shadow-md);
-    padding: 12px 14px 10px; display: none;
-  }
-  .cat-legend.show { display: block; animation: popIn .16s ease; }
-  @keyframes popIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
-  .lg-head { display: flex; flex-direction: column; gap: 3px; margin-bottom: 10px; }
-  .lg-head-t { font-size: 12.5px; font-weight: 700; color: var(--text); }
-  .lg-head-s { font-size: 10.5px; color: var(--text-hint); line-height: 1.45; }
-  .lg-group { padding: 7px 0; border-top: 1px solid var(--border); }
-  .lg-group:first-child { border-top: none; padding-top: 0; }
-  .lg-group-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-  .lg-group-dot { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
-  .lg-group-key { font-size: 11.5px; font-weight: 700; color: var(--text); }
-  .lg-group-hr {
-    font-size: 10px; font-weight: 700; color: var(--text-sub);
-    background: var(--surface-muted); border-radius: 4px; padding: 1px 5px;
-  }
-  .lg-group-desc { font-size: 10px; color: var(--text-hint); margin-left: auto; }
-  .lg-chips { display: flex; flex-wrap: wrap; gap: 5px; }
-  .lg-foot { font-size: 10px; color: var(--text-hint); border-top: 1px solid var(--border); padding-top: 8px; margin-top: 4px; }
   .cat-chip {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 3px 10px 3px 8px; border-radius: 20px;
@@ -339,6 +328,15 @@
   .dhdr:last-child { border-right: none; }
   .dhdr .day-name { font-size: 13px; font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; }
   .dhdr .day-dot  { width: 5px; height: 5px; border-radius: 50%; background: transparent; transition: background .12s; }
+  /* 요일별 이행률(계획 대비 실제) — 주간 보기에서도 앱의 요점이 보이도록 */
+  .dhdr-rate {
+    width: 74%; height: 3px; border-radius: 2px; margin-top: 1px;
+    background: var(--border); overflow: hidden;
+  }
+  .dhdr-rate b { display: block; height: 100%; border-radius: 2px; transition: width .35s ease; }
+  .dhdr-rate[data-lv="hi"]  b { background: #16A34A; }
+  .dhdr-rate[data-lv="mid"] b { background: #EB8E55; }
+  .dhdr-rate[data-lv="low"] b { background: #DC2626; }
   .dhdr:hover .day-dot { background: var(--border-hr); }
   .dhdr .day-today-badge {
     font-size: 9px; font-weight: 700; color: #fff; background: var(--today);
@@ -1360,6 +1358,8 @@
 
     /* 상단 topbar: 3-5-7-9 밸런스 줄은 압축해서 유지 */
     .cat-row { padding: 5px 10px 6px; gap: 7px; }
+    .cat-strip { padding: 5px 10px; gap: 5px; }
+    .cat-strip-hint { display: none; }
     .bal-label-num { font-size: 10px; letter-spacing: .4px; }
     .bal-label-scope { font-size: 9px; }
     .bal-g { min-width: 78px; padding: 4px 7px 5px; border-radius: 8px; column-gap: 4px; row-gap: 3px; }
@@ -1369,7 +1369,6 @@
     .bal-g-num { font-size: 10.5px; }
     .bal-g-bar { height: 4px; }
     .bal-total { display: none; }
-    .lg-btn { height: 24px; padding: 0 8px; font-size: 10px; }
     /* 가로 스크롤 힌트 */
     .bal-groups { -webkit-mask-image: linear-gradient(to right, #000 88%, transparent 100%);
                           mask-image: linear-gradient(to right, #000 88%, transparent 100%); }
@@ -1659,7 +1658,6 @@
     .cat-row { padding: 6px 12px 7px; gap: 8px; }
     .bal-g { min-width: 92px; padding: 4px 8px 5px; }
     .bal-tail .bal-total { display: none; }
-    .cat-legend { width: calc(100vw - 24px); right: 12px; }
   }
   /* ── Modern polish ───────────────────────────── */
   ::selection { background: rgba(224,138,56,.22); }
@@ -1743,19 +1741,10 @@
     <span id="fbStatus" style="display:none;"></span>
     <div class="bal-tail">
       <span class="bal-total" id="balTotal"></span>
-      <button class="lg-btn" id="btnCatLegend" title="색 범례 보기">색 범례</button>
     </div>
   </div>
-</div>
-
-<!-- 색 범례 팝오버 -->
-<div class="cat-legend" id="catLegend">
-  <div class="lg-head">
-    <span class="lg-head-t">색 = 3-5-7-9 그룹</span>
-    <span class="lg-head-s">벤자민 프랭클린 · 하루 24h = 업무 9 + 수면 7 + 여가 5 + 자기계발 3</span>
-  </div>
-  <div id="catLegendBody"></div>
-  <div class="lg-foot">라벨에 키워드가 들어가면 자동으로 분류돼요 · ⚙️ 설정에서 편집</div>
+  <!-- 그룹을 고르면 그 안의 카테고리가 여기에 펼쳐진다 (예전 색 범례 팝오버를 대체) -->
+  <div class="cat-strip" id="catStrip"></div>
 </div>
 
 <!-- 더보기 드롭다운 메뉴 -->
@@ -2110,27 +2099,8 @@ function saveCategories() {
   if (db && currentUser) db.ref(`users/${currentUser.uid}/categories_v4`).set(CATEGORIES).catch(()=>{});
   renderCatChips();
 }
-// 색 범례 팝오버: 3-5-7-9 그룹별로 묶어서 표시
-function renderCatChips() {
-  const wrap = document.getElementById('catLegendBody');
-  if (!wrap) return;
-  const order = [...GROUP_KEYS, GROUP_ETC];
-  wrap.innerHTML = order.map(g => {
-    const cats = CATEGORIES.filter(c => (c.group || GROUP_ETC) === g);
-    if (!cats.length) return '';
-    const gd = groupDef(g);
-    return `<div class="lg-group">
-      <div class="lg-group-head">
-        <span class="lg-group-dot" style="background:${groupColor(g)}"></span>
-        <span class="lg-group-key">${g}</span>
-        ${gd ? `<span class="lg-group-hr">${gd.hours}h</span><span class="lg-group-desc">${gd.desc}</span>` : ''}
-      </div>
-      <div class="lg-chips">${cats.map(c =>
-        `<span class="cat-chip" style="background:${c.bg || hexToBg(c.color)};color:${c.color}"><span class="cat-chip-dot" style="background:${c.color}"></span>${esc(c.key)}</span>`
-      ).join('')}</div>
-    </div>`;
-  }).join('');
-}
+// 카테고리 편집 후 화면 갱신 — 색 사전은 이제 밸런스 바 아래 띠가 맡는다
+function renderCatChips() { renderCatStrip(); }
 const FREE_COLOR    = '#E5E9F0';
 
 // 라벨에서 카테고리 키 반환 ("헬스 60" → "몸")
@@ -3179,16 +3149,100 @@ function updateRtLeg() {
   const sc = document.getElementById('balScope');
   if (sc) sc.textContent = isDay ? DAYS_KO[dayView] : '이번 주 합계';
 
+  renderCatStrip();
   applyGroupFilter();
+  updateDayProgress();
 }
 
-/* 그룹 선택 시 다른 그룹 블록을 흐리게 */
+/* 요일 헤더 아래 이행률 막대 (계획 대비 실제).
+   주간 보기에는 2트랙이 없어 앱의 핵심 대비가 보이지 않았다.
+   블록을 쪼갤 폭은 없으니 요약 한 줄만 얹는다. */
+let _rateBarCount = -1;
+function updateDayProgress() {
+  const hdrs = document.getElementById('dhdrs');
+  if (!hdrs) return;
+  const plan = Array(7).fill(0), act = Array(7).fill(0);
+  blocks.forEach(b => {
+    if (!b.mins) return;
+    if ((b.track || 0) === 1) act[b.col]  = (act[b.col]  || 0) + b.mins;
+    else                      plan[b.col] = (plan[b.col] || 0) + b.mins;
+  });
+  const anyAct = act.some(v => v > 0);
+  // 아직 오지 않은 날은 제외한다 — 0%는 "못 했다"가 아니라 "아직"이다
+  const today = new Date(); today.setHours(0,0,0,0);
+  const monday = getWeekMonday(weekOffset);
+  let shown = 0;
+  [...hdrs.children].forEach((btn, i) => {
+    const old = btn.querySelector('.dhdr-rate');
+    if (old) old.remove();
+    const d = new Date(monday); d.setDate(monday.getDate() + i); d.setHours(0,0,0,0);
+    if (d > today) return;
+    // 실제 기록이 하나도 없는 주에는 그리지 않는다 — 빈 막대는 실패처럼 보인다
+    if (!anyAct || !plan[i]) return;
+    const rate = Math.min(100, Math.round(act[i] / plan[i] * 100));
+    const bar = document.createElement('span');
+    bar.className = 'dhdr-rate';
+    bar.dataset.lv = rate >= 80 ? 'hi' : rate >= 50 ? 'mid' : 'low';
+    bar.title = `계획 ${fmtTime(plan[i])} · 실제 ${fmtTime(act[i])} · 이행률 ${rate}%`;
+    bar.innerHTML = `<b style="width:${rate}%"></b>`;
+    btn.appendChild(bar);
+    shown++;
+  });
+  // 막대가 생기거나 사라지면 헤더 높이가 바뀌므로 시간축 여백을 다시 맞춘다
+  if (shown !== _rateBarCount) {
+    _rateBarCount = shown;
+    requestAnimationFrame(syncAxisSpacer);
+  }
+}
+
+/* 선택한 그룹의 카테고리를 밸런스 바 아래에 펼친다.
+   예전에는 "색 범례" 버튼이 팝오버를 띄웠고, 그 팝오버는 다시 닫혔다.
+   항상 떠 있는 그룹 막대 자체를 사전으로 쓰는 편이 맞다. */
+let catFilter = null;   // 2단계 필터: 그룹 안의 특정 카테고리
+
+function renderCatStrip() {
+  const strip = document.getElementById('catStrip');
+  if (!strip) return;
+  if (!groupFilter) {
+    strip.classList.remove('show');
+    strip.innerHTML = '';
+    catFilter = null;
+    return;
+  }
+  const gd   = groupDef(groupFilter);
+  const cats = CATEGORIES.filter(c => (c.group || GROUP_ETC) === groupFilter);
+  if (catFilter && !cats.some(c => c.key === catFilter)) catFilter = null;
+  strip.classList.add('show');
+  strip.innerHTML =
+    `<span class="cat-strip-lbl" style="color:${groupColor(groupFilter)}">${esc(groupFilter)}${gd ? ' ' + gd.hours + 'h' : ''}</span>`
+    + (cats.length
+        ? cats.map(c =>
+            `<button class="cat-chip${catFilter === c.key ? ' sel' : ''}" data-cat="${esc(c.key)}"
+               style="background:${c.bg || hexToBg(c.color)};color:${c.color}"
+               title="${esc(c.key)}만 강조">
+               <span class="cat-chip-dot" style="background:${c.color}"></span>${esc(c.key)}</button>`).join('')
+        : '<span class="cat-strip-hint">이 그룹에 카테고리가 없어요 · ⚙️ 설정에서 추가</span>')
+    + (cats.length ? `<span class="cat-strip-hint">${gd ? esc(gd.desc) + ' · ' : ''}칩을 누르면 그 카테고리만 강조</span>` : '');
+}
+
+document.getElementById('catStrip').addEventListener('click', e => {
+  const chip = e.target.closest('[data-cat]');
+  if (!chip) return;
+  const k = chip.dataset.cat;
+  catFilter = (catFilter === k) ? null : k;
+  updateRtLeg();
+});
+
+/* 그룹(또는 카테고리) 선택 시 나머지 블록을 흐리게 */
 function applyGroupFilter() {
   document.querySelectorAll('.blk').forEach(el => el.classList.remove('gdim'));
-  if (!groupFilter) return;
+  if (!groupFilter && !catFilter) return;
   blocks.forEach(b => {
     const el = document.getElementById('b' + b.id);
-    if (el && grpOf(b.label) !== groupFilter) el.classList.add('gdim');
+    if (!el) return;
+    const cat = catOf(b.label);
+    const hit = catFilter ? (cat === catFilter) : (catGroup(cat) === groupFilter);
+    if (!hit) el.classList.add('gdim');
   });
 }
 
@@ -3200,28 +3254,6 @@ document.getElementById('rtLeg').addEventListener('click', e => {
 });
 
 /* 색 범례 팝오버 */
-(function wireLegend() {
-  const btn = document.getElementById('btnCatLegend');
-  const pop = document.getElementById('catLegend');
-  if (!btn || !pop) return;
-  btn.addEventListener('click', e => {
-    e.stopPropagation();
-    const open = pop.classList.toggle('show');
-    if (open) {
-      const r = btn.getBoundingClientRect();
-      pop.style.top = (r.bottom + 8) + 'px';
-      renderCatChips();
-    }
-  });
-  document.addEventListener('pointerdown', e => {
-    if (!pop.classList.contains('show')) return;
-    if (pop.contains(e.target) || e.target === btn) return;
-    pop.classList.remove('show');
-  }, { capture: true });
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') pop.classList.remove('show');
-  });
-})();
 
 /* ── 통계용 3-5-7-9 섹션 ─────────────────────── */
 // planTally / actTally: { 카테고리키: 분 }
@@ -4291,6 +4323,8 @@ function refreshDayHeaders() {
       <span class="day-name">${DAYS_KR[i]} ${dateStr}</span>
       ${isToday ? '<span class="day-today-badge">오늘</span>' : '<span class="day-dot"></span>'}`;
   });
+  _rateBarCount = -1;
+  updateDayProgress();
 }
 
 // 주 단위 이동의 실체. 화살표 버튼은 이걸 직접 부르지 않고
